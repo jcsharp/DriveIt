@@ -41,11 +41,11 @@ class DriveItEnv(gym.Env):
 
 
     def __init__(self, time_limit=10, throttle_limit=1.0, gamma=0.98, \
-                 show_true_mdist=False, trail_length=2.4):
+                 show_true_median_position=False, trail_length=2.4):
         
         self.time_limit = time_limit
         self.throttle_limit = throttle_limit
-        self.show_true_mdist = show_true_mdist
+        self.show_true_median_position = show_true_median_position
         self.trail_length = trail_length
 
         # corresponds to the maximum discounted reward over a median lap
@@ -74,19 +74,33 @@ class DriveItEnv(gym.Env):
         return [seed]
 
 
-    def _visibleState(self):
+    def _observation(self):
+        '''
+        Returns the observation derived from the car sensors.
+        '''
+        
         x, y, theta, steer, throttle, median_distance = self.position
         lap_distance, blue_left, blue_right = self.sensors
-        b_rl = blue_right - blue_left
-        if self.show_true_mdist:
-            return np.array((median_distance / checkpoint_median_length, theta / pi, steer, b_rl))
+
+        if self.show_true_median_position:
+            lap_distance = median_distance
+            b_rl = self._lateral_error(x, y, median_distance)
         else:
-            return np.array((lap_distance / checkpoint_median_length, theta / pi, steer, b_rl))
+            b_rl = blue_right - blue_left
+
+        # add noise
+        lap_distance =  np.random.normal(lap_distance, 0.001)
+        theta =  np.random.normal(theta, 0.01)
+
+        return np.array((lap_distance / checkpoint_median_length, theta / pi, steer, b_rl))
 
 
     def _reset(self):
+        '''
+        Resets the simulation, choosing a new random position for the car.
+        '''
         if self.time == 0.0:
-            return self._visibleState()
+            return self._observation()
         
         if self.viewer:
             self.breadcrumb.v.clear()
@@ -105,13 +119,16 @@ class DriveItEnv(gym.Env):
         blue_left, blue_right, _ = self._sensors_blueness(x, y, cos(theta), sin(theta))
         
         self.time = 0.0
-        self.bias = 0.0
         self.position = (x, y, theta, steer, self.safe_throttle(steer), median_distance)
         self.sensors = (median_distance, blue_left, blue_right)
-        return self._visibleState()
+        return self._observation()
 
 
     def _step(self, action):
+        '''
+        Executes the specified action, computes a new state and the reward.
+        '''
+
         x, y, theta, steer_, throttle_, median_distance_ = self.position
         lap_distance, blue_left_, blue_right_ = self.sensors
         
@@ -123,17 +140,13 @@ class DriveItEnv(gym.Env):
         dp = self._auto_throttle(steer, throttle_)
         throttle = max(min(throttle_ + dp, 1.0), -1.0)
 
-        # make small random changes to the steering bias
-        #self.bias = min(0.1, max(-0.1, np.random.normal(bias, 0.005)))
-
-        # average curvature and speed, with some noise
-        K = K_max * ((steer + steer_) / 2.0 + self.bias)
+        # average curvature and speed
+        K = K_max * ((steer + steer_) / 2.0)
         v = v_max * (throttle + throttle_) / 2.0
-        #v = abs(np.random.normal(v, v * 0.01))
 
         # calculate the new position
         dd = v * dt
-        theta = angle_normalize(theta + dd * K)
+        theta = canonical_angle(theta + dd * K)
         cos_theta = cos(theta)
         sin_theta = sin(theta)
         x += dd * cos_theta
@@ -172,7 +185,7 @@ class DriveItEnv(gym.Env):
 
         self.position = (x, y, theta, steer, throttle, median_distance)
         self.sensors = (lap_distance, blue_left, blue_right)
-        state = self._visibleState()
+        state = self._observation()
         return state, reward, done, { \
             'checkpoint': checkpoint,
             'lap': lap,
@@ -181,6 +194,15 @@ class DriveItEnv(gym.Env):
 
 
     def _median_distance(self, x, y, current_mdist):
+        '''
+        Provides a normalized longitudinal position along the track.
+        
+        Returns (median_distance, lap, checkpoint) where:
+        median_distance: is the normalized longitudinal position along the track,
+        lap: is True if the car just passed the lap threshold
+        checkpoint: is True if the car just passed the checkpoint threshold
+        '''
+
         # on central cross
         if abs(x) <= median_radius and abs(y) <= median_radius:
 
@@ -210,6 +232,9 @@ class DriveItEnv(gym.Env):
 
 
     def _position_from_median_distance(self, mdist):
+        '''
+        Calculate the position corresponding to a specific point on the track median.
+        '''
         # before checkpoint
         if mdist >= 0:
             # lap straight line
@@ -220,7 +245,7 @@ class DriveItEnv(gym.Env):
                 alpha = (mdist - line_length) / median_radius
                 x = median_radius * (sin(alpha) + 1)
                 y = median_radius * (cos(alpha) - 1)
-                return x, y, angle_normalize(-alpha), -median_radius / K_max
+                return x, y, canonical_angle(-alpha), -median_radius / K_max
 
         # after checkpoint
         else:
@@ -232,17 +257,13 @@ class DriveItEnv(gym.Env):
                 alpha = -mdist / median_radius
                 x = -median_radius * (1 + sin(alpha))
                 y = median_radius * (1 - cos(alpha))
-                return x, y, angle_normalize(-alpha), median_radius / K_max
+                return x, y, canonical_angle(-alpha), median_radius / K_max
 
 
-    def median_error(self, look_ahead=0.05):
-        
-        x, y, theta, steer, trottle, mdist_ = self.position
-        mdist = mdist_ + look_ahead
-        if mdist > checkpoint_median_length:
-            mdist -= lap_median_length
-
-        _, _, theta_, steer_ = self._position_from_median_distance(mdist)
+    def _lateral_error(self, x, y, mdist):
+        '''
+        Calculates the lateral distance between the car center and the track median.
+        '''
 
         # before checkpoint
         if mdist >= 0:
@@ -268,14 +289,37 @@ class DriveItEnv(gym.Env):
                 dy = y - median_radius
                 lat_err = median_radius - math.sqrt(dx ** 2 + dy ** 2) 
 
-        lat_err /= 0.225
-        h_err = angle_normalize(theta - theta_) / pi
+        return lat_err / 0.225
+
+
+    def median_error(self, look_ahead=0.0):
+        '''
+        Compares the current car position with a trajectory that strictly 
+        follows the track median.
+
+        Returns the lateral, heading and steering error.
+        '''
+        
+        x, y, theta, steer, trottle, mdist_ = self.position
+
+        if look_ahead != 0.0:
+            mdist = mdist_ + look_ahead
+            if mdist > checkpoint_median_length:
+                mdist -= lap_median_length
+        
+        _, _, theta_, steer_ = self._position_from_median_distance(mdist)
+
+        lat_err = self._lateral_error(x, y, mdist)
+        h_err = canonical_angle(theta - theta_) / pi
         st_err = steer - steer_
 
         return np.array((lat_err, h_err, st_err))
 
 
     def _is_wrong_way(self, x, y, theta, checkpoint):
+        '''
+        Checks if the car is making an illegal turn at the crossing.
+        '''
         if abs(x) < crossing_threshold:
             if y > wrong_way_min and y < wrong_way_max and theta > 0:
                 return not checkpoint
@@ -289,11 +333,17 @@ class DriveItEnv(gym.Env):
 
 
     def _auto_throttle(self, steer, throttle):
+        '''
+        Indicates how to move the throttle based on safe speed for the specified steering.
+        '''
         safe = self.safe_throttle(steer)
         return math.copysign(dt * 2.5, safe - throttle)
 
 
     def safe_throttle(self, steer):
+        '''
+        Gets the safe throttle value based on the specified steering.
+        '''
         return min(self.throttle_limit, 1.0 - abs(steer) / 2.0)
 
 
@@ -368,6 +418,9 @@ class DriveItEnv(gym.Env):
 
 
     def _track_color(self, x, y):
+        '''
+        Gets the track color at the specified coordinates.
+        '''
         img_x = math.trunc((x + self.track.width / 2) / self.track.width * self.track.img.width)
         img_y = math.trunc((self.track.height - (y + self.track.height / 2)) \
             / self.track.height * self.track.img.height)
@@ -379,6 +432,12 @@ class DriveItEnv(gym.Env):
 
 
     def _blueness(self, x, y):
+        '''
+        Gets the _blueness_ of the track at the specified coordinates.
+
+        The blueness is the normalized difference between the blue and the red 
+        channels of the RGB color sensor.
+        '''
         b, g, r, a = self._track_color(x, y)
         if a == 0:
             return 1.0
@@ -387,14 +446,20 @@ class DriveItEnv(gym.Env):
 
 
     def _sensors_blueness(self, x, y, cos_theta, sin_theta):
+        '''
+        Gets the blueness measured from the car's floor color sensors.
+        '''
         offset_x_l = sensor_offeset_x * cos_theta - sensor_offeset_y * sin_theta
         offset_x_r = sensor_offeset_x * cos_theta + sensor_offeset_y * sin_theta
         offset_y_l = sensor_offeset_x * sin_theta + sensor_offeset_y * cos_theta
         offset_y_r = sensor_offeset_x * sin_theta - sensor_offeset_y * cos_theta
         blue_left = self._blueness(x + offset_x_l, y + offset_y_l)
         blue_right = self._blueness(x + offset_x_r, y + offset_y_r)
-        return (blue_left, blue_right, self._blueness(x, y)) #(blue_left + blue_right) / 2.0)
+        return (blue_left, blue_right, self._blueness(x, y))
 
 
-def angle_normalize(x):
+def canonical_angle(x):
+    '''
+    Gets the canonical value of an angle.
+    '''
     return ((x + np.pi) % (2 * np.pi)) - np.pi
