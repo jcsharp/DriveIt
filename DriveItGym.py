@@ -41,11 +41,11 @@ class DriveItEnv(gym.Env):
 
 
     def __init__(self, time_limit=10, throttle_limit=1.0, gamma=0.98, \
-                 show_true_median_position=False, trail_length=2.4):
+                 show_true_median_pos=False, trail_length=2.4):
         
         self.time_limit = time_limit
         self.throttle_limit = throttle_limit
-        self.show_true_median_position = show_true_median_position
+        self.show_true_median_pos = show_true_median_pos
         self.trail_length = trail_length
 
         # corresponds to the maximum discounted reward over a median lap
@@ -82,7 +82,7 @@ class DriveItEnv(gym.Env):
         x, y, theta, steer, throttle, median_distance = self.position
         lap_distance, blue_left, blue_right = self.sensors
 
-        if self.show_true_median_position:
+        if self.show_true_median_pos:
             lap_distance = median_distance
             b_rl = self._lateral_error(x, y, median_distance)
         else:
@@ -306,10 +306,12 @@ class DriveItEnv(gym.Env):
             mdist = mdist_ + look_ahead
             if mdist > checkpoint_median_length:
                 mdist -= lap_median_length
+        else:
+            mdist = mdist_
         
         _, _, theta_, steer_ = self._position_from_median_distance(mdist)
 
-        lat_err = self._lateral_error(x, y, mdist)
+        lat_err = self._lateral_error(x, y, mdist_)
         h_err = canonical_angle(theta - theta_) / pi
         st_err = steer - steer_
 
