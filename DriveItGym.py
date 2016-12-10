@@ -95,28 +95,37 @@ class DriveItEnv(gym.Env):
         return np.array((lap_distance / checkpoint_median_length, theta / pi, steer, b_rl))
 
 
-    def _reset(self):
+    def _reset(self, random_position=True):
         '''
-        Resets the simulation, choosing a new random position for the car.
+        Resets the simulation.
+
+        By default, the car is placed at a random position along the race track, 
+        which improves learning.
+
+        If random_position is set to False, the car is placed at the normal 
+        starting position.
         '''
-        if self.time == 0.0:
-            return self._observation()
-        
+
         if self.viewer:
             self.breadcrumb.v.clear()
-        
-        # random position along the track median
-        median_distance = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
-        x, y, theta, steer = self._position_from_median_distance(median_distance)
 
-        # add some noise
-        x += np.random.uniform(-0.03, 0.03)
-        y += np.random.uniform(-0.03, 0.03)
-        theta += np.random.uniform(-pi / 36.0, pi / 36.0)
-        steer += steer_actions[np.random.randint(0, 2)]
+        if random_position:
+            # random position along the track median
+            median_distance = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
+            x, y, theta, steer = self._position_from_median_distance(median_distance)
 
-        # initial sensor values
-        blue_left, blue_right, _ = self._sensors_blueness(x, y, cos(theta), sin(theta))
+            # add some noise
+            x += np.random.uniform(-0.03, 0.03)
+            y += np.random.uniform(-0.03, 0.03)
+            theta += np.random.uniform(-pi / 36.0, pi / 36.0)
+            steer += steer_actions[np.random.randint(0, 2)]
+
+            # initial sensor values
+            blue_left, blue_right, _ = self._sensors_blueness(x, y, cos(theta), sin(theta))
+
+        else:
+            x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
+            median_distance, blue_left, blue_right = 0.0, 0.0, 0.0
         
         self.time = 0.0
         self.position = (x, y, theta, steer, self.safe_throttle(steer), median_distance)
