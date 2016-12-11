@@ -49,8 +49,9 @@ class DriveItEnv(gym.Env):
         self.trail_length = trail_length
 
         # corresponds to the maximum discounted reward over a median lap
-        self.max_reward = throttle_limit * v_max * dt / (1 - gamma)
-
+        max_reward = throttle_limit * v_max * dt / (1 - gamma)
+        self.out_reward = -max_reward
+        
         self.viewer = None
 
         high = np.array([  1.0,  1.0,  1.0,  1.0 ])
@@ -190,7 +191,7 @@ class DriveItEnv(gym.Env):
         #reward -= (blue_left + blue_right) / 2.0 * dt
         # do we need further punishment when we exit the tracks?
         if out or wrong_way:
-            reward = -self.max_reward
+            reward = self.out_reward
 
         self.position = (x, y, theta, steer, throttle, median_distance)
         self.sensors = (lap_distance, blue_left, blue_right)
