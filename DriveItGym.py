@@ -49,8 +49,9 @@ class DriveItEnv(gym.Env):
         self.trail_length = trail_length
 
         # corresponds to the maximum discounted reward over a median lap
-        self.max_reward = throttle_limit * v_max * dt / (1 - gamma)
-
+        max_reward = throttle_limit * v_max * dt / (1 - gamma)
+        self.out_reward = -max_reward
+        
         self.viewer = None
 
         high = np.array([  1.0,  1.0,  1.0,  1.0 ])
@@ -88,39 +89,59 @@ class DriveItEnv(gym.Env):
         else:
             b_rl = blue_right - blue_left
 
-        # add noise
-        lap_distance =  np.random.normal(lap_distance, 0.001)
-        theta =  np.random.normal(theta, 0.01)
+        # update accumulating bias
+        bias_x, bias_y, bias_theta = self.bias
+        bias_x = np.random.normal(bias_x, 0.001)
+        if b_rl != 0.0:
+            bias_y = 0.0
+        bias_y = np.random.normal(bias_y, 0.001)
+        bias_theta = min(0.017, max(-0.017, np.random.normal(bias_theta, 0.001)))
+        self.bias = (bias_x, bias_y, bias_theta)
+
+        #add noise
+        lap_distance += bias_x
+        b_rl += bias_y
+        theta += bias_theta
 
         return np.array((lap_distance / checkpoint_median_length, theta / pi, steer, b_rl))
 
 
-    def _reset(self):
+    def _reset(self, random_position=True):
         '''
-        Resets the simulation, choosing a new random position for the car.
+        Resets the simulation.
+
+        By default, the car is placed at a random position along the race track, 
+        which improves learning.
+
+        If random_position is set to False, the car is placed at the normal 
+        starting position.
         '''
-        if self.time == 0.0:
-            return self._observation()
-        
+
         if self.viewer:
             self.breadcrumb.v.clear()
-        
-        # random position along the track median
-        median_distance = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
-        x, y, theta, steer = self._position_from_median_distance(median_distance)
 
-        # add some noise
-        x += np.random.uniform(-0.03, 0.03)
-        y += np.random.uniform(-0.03, 0.03)
-        theta += np.random.uniform(-pi / 36.0, pi / 36.0)
-        steer += steer_actions[np.random.randint(0, 2)]
+        if random_position:
+            # random position along the track median
+            median_distance = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
+            x, y, theta, steer = self._position_from_median_distance(median_distance)
 
-        # initial sensor values
-        blue_left, blue_right, _ = self._sensors_blueness(x, y, cos(theta), sin(theta))
+            # add some noise
+            x += np.random.uniform(-0.03, 0.03)
+            y += np.random.uniform(-0.03, 0.03)
+            theta += np.random.uniform(-pi / 36.0, pi / 36.0)
+            steer += steer_actions[np.random.randint(0, 2)]
+
+            # initial sensor values
+            blue_left, blue_right, _ = self._sensors_blueness(x, y, cos(theta), sin(theta))
+
+        else:
+            x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
+            median_distance, blue_left, blue_right = 0.0, 0.0, 0.0
         
         self.time = 0.0
         self.position = (x, y, theta, steer, self.safe_throttle(steer), median_distance)
         self.sensors = (median_distance, blue_left, blue_right)
+        self.bias = (0.0, 0.0, 0.0)
         return self._observation()
 
 
@@ -161,10 +182,12 @@ class DriveItEnv(gym.Env):
 
         if lap:
             lap_distance = 0
+            self.bias = (0.0, self.bias[1], self.bias[2])
 
         if checkpoint:
             ddist += lap_median_length
             lap_distance = -checkpoint_median_length
+            self.bias = (0.0, self.bias[1], self.bias[2])
 
         # are we done yet?
         out = blue_center >= blue_threshold
@@ -181,7 +204,7 @@ class DriveItEnv(gym.Env):
         #reward -= (blue_left + blue_right) / 2.0 * dt
         # do we need further punishment when we exit the tracks?
         if out or wrong_way:
-            reward = -self.max_reward
+            reward = self.out_reward
 
         self.position = (x, y, theta, steer, throttle, median_distance)
         self.sensors = (lap_distance, blue_left, blue_right)
