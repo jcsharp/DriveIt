@@ -30,9 +30,6 @@ half_track_width = 0.225
 wrong_way_min = 0.275
 wrong_way_max = median_radius
 
-sensor_offeset_x = 0.11
-sensor_offeset_y = 0.05
-
 class DriveItEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
@@ -99,9 +96,6 @@ class DriveItEnv(gym.Env):
             # add some noise
             theta += np.random.uniform(-pi / 36.0, pi / 36.0)
             steer += steer_actions[np.random.randint(0, 2)]
-
-            # initial sensor values
-            blue_left, blue_right, _ = self._sensors_blueness(x, y, cos(theta), sin(theta))
 
         else:
             x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
@@ -187,27 +181,6 @@ class DriveItEnv(gym.Env):
         if blueness != 0.0:
             y_m_hat = y_m
     
-        # update beliefs
-        #theta_hat = np.random.normal(theta, 0.001)
-        #dd_hat = np.random.normal(dd, 0.0001)
-        #theta_hat = theta
-        #dd_hat = dd
-
-        # integrate trajectory
-        #ipoints = 10
-        #ddi = dd_hat / ipoints
-        #thls = np.linspace(theta_hat_, theta_hat, ipoints)
-        #for i in range(ipoints):
-        #    median_heading, _ = self._median_properties(x_m_hat)
-        #    err_heading = thls[i] - median_heading
-        #    x_m_hat += ddi * cos(err_heading)
-        #    y_m_hat += ddi * sin(err_heading)
-
-        #median_heading, _ = self._median_properties(x_m_hat)
-        #err_heading = canonical_angle(theta_hat - median_heading)
-        #x_m_hat += dd_hat * cos(err_heading)
-        #y_m_hat += dd_hat * sin(err_heading)
-
         # are we done yet?
         out = blueness >= blue_threshold
         wrong_way = self._is_wrong_way(x, y, theta, x_m < 0.0)
@@ -216,12 +189,6 @@ class DriveItEnv(gym.Env):
 
         # reward progress
         reward = dx_m
-        # discourage over-steering
-        #reward -= abs(ds) * dt if ds * steer >= 0.0 else 0.0
-        # penalty for getting closer to the track boundary
-        #Sreward -= (blue_left - blue_left_ + blue_right - blue_right_) / 2.0 * dt
-        #reward -= (blue_left + blue_right) / 2.0 * dt
-        # do we need further punishment when we exit the tracks?
         if out or wrong_way:
             reward = self.out_reward
 
@@ -449,14 +416,8 @@ class DriveItEnv(gym.Env):
             car.add_attr(self.cartrans)
             self.viewer.add_geom(car)
 
-            x = sensor_offeset_x
-            y = sensor_offeset_y
             d = 0.01
-            sensor = rendering.FilledPolygon([(x-d, y-d), (x-d, y+d), (x+d, y+d), (x+d, y-d)])
-            sensor.set_color(255, 0, 0)
-            sensor.add_attr(self.cartrans)
-            self.viewer.add_geom(sensor)
-            sensor = rendering.FilledPolygon([(x-d, -y-d), (x-d, -y+d), (x+d, -y+d), (x+d, -y-d)])
+            sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
             sensor.set_color(255, 0, 0)
             sensor.add_attr(self.cartrans)
             self.viewer.add_geom(sensor)
@@ -467,18 +428,9 @@ class DriveItEnv(gym.Env):
             carout.add_attr(self.cartrans)
             self.viewer.add_geom(carout)
             
-            #self.floorWin = rendering.PolyLine(\
-            #    [(-flcw,-flcw), (-flcw,flcw), (flcw,flcw), (flcw,-flcw)], close=True)
-            #self.floorWin.set_linewidth(3)
-            #self.floorWin.set_color(255,0,0)
-            #self.floorWin.add_attr(self.cartrans)
-            #self.viewer.add_geom(self.floorWin)
-
         x, y, theta, _, _, _, _ = self.state
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
-        #b,g,r,a = self._track_color(x,y)
-        #self.floorWin.set_color(r,g,b)
         self.breadcrumb.v.append((x, y))
         if len(self.breadcrumb.v) > self.trail_length * fps:
             self.breadcrumb.v.pop(0)
@@ -512,19 +464,6 @@ class DriveItEnv(gym.Env):
             return 1.0
         else:
             return (b - r) / 255
-
-
-    def _sensors_blueness(self, x, y, cos_theta, sin_theta):
-        '''
-        Gets the blueness measured from the car's floor color sensors.
-        '''
-        offset_x_l = sensor_offeset_x * cos_theta - sensor_offeset_y * sin_theta
-        offset_x_r = sensor_offeset_x * cos_theta + sensor_offeset_y * sin_theta
-        offset_y_l = sensor_offeset_x * sin_theta + sensor_offeset_y * cos_theta
-        offset_y_r = sensor_offeset_x * sin_theta - sensor_offeset_y * cos_theta
-        blue_left = self._blueness(x + offset_x_l, y + offset_y_l)
-        blue_right = self._blueness(x + offset_x_r, y + offset_y_r)
-        return (blue_left, blue_right, self._blueness(x, y))
 
 
 def canonical_angle(x):
