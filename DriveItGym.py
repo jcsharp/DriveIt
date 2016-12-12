@@ -90,17 +90,18 @@ class DriveItEnv(gym.Env):
             b_rl = blue_right - blue_left
 
         # update accumulating bias
-        bias_x, bias_y = self.bias
+        bias_x, bias_y, bias_theta = self.bias
         bias_x = np.random.normal(bias_x, 0.001)
         if b_rl != 0.0:
             bias_y = 0.0
         bias_y = np.random.normal(bias_y, 0.001)
-        self.bias = (bias_x, bias_y)
+        bias_theta = min(0.017, max(-0.017, np.random.normal(bias_theta, 0.001)))
+        self.bias = (bias_x, bias_y, bias_theta)
 
         #add noise
         lap_distance += bias_x
         b_rl += bias_y
-        theta =  np.random.normal(theta, 0.01)
+        theta += bias_theta
 
         return np.array((lap_distance / checkpoint_median_length, theta / pi, steer, b_rl))
 
@@ -140,7 +141,7 @@ class DriveItEnv(gym.Env):
         self.time = 0.0
         self.position = (x, y, theta, steer, self.safe_throttle(steer), median_distance)
         self.sensors = (median_distance, blue_left, blue_right)
-        self.bias = (0.0, 0.0)
+        self.bias = (0.0, 0.0, 0.0)
         return self._observation()
 
 
@@ -181,12 +182,12 @@ class DriveItEnv(gym.Env):
 
         if lap:
             lap_distance = 0
-            self.bias = (0.0, self.bias[1])
+            self.bias = (0.0, self.bias[1], self.bias[2])
 
         if checkpoint:
             ddist += lap_median_length
             lap_distance = -checkpoint_median_length
-            self.bias = (0.0, self.bias[1])
+            self.bias = (0.0, self.bias[1], self.bias[2])
 
         # are we done yet?
         out = blue_center >= blue_threshold
