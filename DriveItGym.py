@@ -190,7 +190,7 @@ class DriveItEnv(gym.Env):
 
         # lateral position correction from the floor sensor
         if blueness != 0.0:
-            y_m_hat = np.copysign(half_track_width + blue_width * (blueness - 1), y_m_hat_)
+            y_m_hat = y_m #np.copysign(half_track_width + blue_width * (blueness - 1), y_m_hat_)
     
         # are we done yet?
         out = blueness >= blue_threshold
@@ -489,7 +489,7 @@ class DriveItEnv(gym.Env):
         if a == 0:
             return 1.0
         else:
-            return (b - r) / 255
+            return (b - r) / 217
 
 
 def canonical_angle(x):
