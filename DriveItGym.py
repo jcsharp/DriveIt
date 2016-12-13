@@ -13,7 +13,10 @@ import numpy as np
 from numpy import cos, sin, pi
 from os import path
 
-steer_actions = [0.0, 0.1, -0.1]
+steer_step = 0.1
+throttle_step = 0.1
+steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
+throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
 blue_threshold = 0.75
 fps = 60.0
 dt = 1.0 / fps
@@ -51,8 +54,8 @@ class DriveItEnv(gym.Env):
         
         self.viewer = None
 
-        high = np.array([  1.0,  1.0,  1.0,  1.0 ])
-        low  = np.array([ -1.0, -1.0, -1.0, -1.0 ])
+        high = np.array([  1.0,  1.0,  1.0,  1.0, 1.0 ])
+        low  = np.array([ -1.0, -1.0, -1.0, -1.0, 0.0 ])
 
         self.action_space = spaces.Discrete(len(steer_actions))
         # for a continuous action space:
@@ -95,16 +98,19 @@ class DriveItEnv(gym.Env):
 
             # add some noise
             theta += np.random.uniform(-pi / 36.0, pi / 36.0)
-            steer += steer_actions[np.random.randint(0, 2)]
+            steer += np.random.randint(-1, 1) * steer_step
+            throttle = int(self._safe_throttle(steer) * np.random.uniform() / throttle_step) * throttle_step
 
         else:
             x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
             x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
+            throttle = 0.0
+
         
         self.time = 0.0
-        self.state = (x, y, theta, steer, self.safe_throttle(steer), x_m, y_m)
+        self.state = (x, y, theta, steer, throttle, x_m, y_m)
         self.belief = (x_m, y_m, theta)
-        observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer))
+        observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
         return observation
 
 
@@ -136,22 +142,26 @@ class DriveItEnv(gym.Env):
         Executes the specified action, computes a new state and the reward.
         '''
 
-        x, y, theta, steer_, throttle_, x_m_, y_m_ = self.state
-        x_m_hat, y_m_hat, theta_hat_ = self.belief
-        
         self.time += dt
 
-        # initial conditions
+        # initial state
+        x, y, theta, steer_, throttle_, x_m_, y_m_ = self.state
+        x_m_hat, y_m_hat, theta_hat_ = self.belief
         v = v_max * throttle_
         K = K_max * steer_
-        ds = steer_actions[action]
+
+        # action
+        ds = steer_actions[action] * steer_step
         steer = max(min(steer_ + ds, 1.0), -1.0)
-        dp = self._auto_throttle(steer_ + ds, throttle_)
-        throttle = max(min(throttle_ + dp, 1.0), -1.0)
+
+        dp = throttle_actions[action] * throttle_step
+        dp = self._throttle_override(steer_ + ds, throttle_, dp)
+        throttle = max(min(throttle_ + dp, 1.0), 0.0)
+        
         dv = dp / dt
         dK = K_max * ds / dt
+        v_hat = 0.0 if v == 0 else np.random.normal(v, v * 0.01)
 
-        v_hat = np.random.normal(v, v * 0.01)
         s_0 = (x, y, theta, x_m_, y_m_, v, K, \
                x_m_hat, y_m_hat, theta_hat_, v_hat, \
                dv, dK)
@@ -194,7 +204,7 @@ class DriveItEnv(gym.Env):
 
         self.state = (x, y, theta, steer, throttle, x_m, y_m)
         self.belief = (x_m_hat, y_m_hat, theta_hat)
-        observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer))
+        observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, throttle))
         return observation, reward, done, { \
             'checkpoint': checkpoint,
             'lap': lap,
@@ -368,15 +378,17 @@ class DriveItEnv(gym.Env):
                 return True
 
 
-    def _auto_throttle(self, steer, throttle):
+    def _throttle_override(self, steer, throttle, dp):
         '''
         Indicates how to move the throttle based on safe speed for the specified steering.
         '''
-        safe = self.safe_throttle(steer)
-        return math.copysign(dt * 2.5, safe - throttle)
+        safe = self._safe_throttle(steer)
+        if throttle + dp > safe:
+            return math.copysign(throttle_step, safe - throttle)
+        else:
+            return throttle + dp
 
-
-    def safe_throttle(self, steer):
+    def _safe_throttle(self, steer):
         '''
         Gets the safe throttle value based on the specified steering.
         '''
