@@ -416,11 +416,20 @@ class DriveItEnv(gym.Env):
             car.add_attr(self.cartrans)
             self.viewer.add_geom(car)
 
-            d = 0.01
+            d = 0.015
             sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
             sensor.set_color(255, 0, 0)
             sensor.add_attr(self.cartrans)
             self.viewer.add_geom(sensor)
+
+            steer = rendering.PolyLine([(-0.035, 0.0), (0.035, 0.0)], close=False)
+            steer.set_linewidth(3)
+            steer.set_color(0, 0, 255)
+            self.steertrans = rendering.Transform()
+            self.steertrans.set_translation(0.065, 0.0)
+            steer.add_attr(self.steertrans)
+            steer.add_attr(self.cartrans)
+            self.viewer.add_geom(steer)
 
             carout = rendering.PolyLine([(l, b), (l, t), (r, t), (r, b)], close=True)
             carout.set_linewidth(3)
@@ -428,9 +437,10 @@ class DriveItEnv(gym.Env):
             carout.add_attr(self.cartrans)
             self.viewer.add_geom(carout)
             
-        x, y, theta, _, _, _, _ = self.state
+        x, y, theta, steer, _, _, _ = self.state
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
+        self.steertrans.set_rotation(steer * pi / 2.0)
         self.breadcrumb.v.append((x, y))
         if len(self.breadcrumb.v) > self.trail_length * fps:
             self.breadcrumb.v.pop(0)
