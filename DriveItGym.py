@@ -23,13 +23,14 @@ dt = 1.0 / fps
 K_max = 4.5
 v_max = 2.5
 
+# track metrics
 median_radius = 0.375
 line_length = 2.0 * median_radius
 loop_median_length = 3.0 / 2.0 * pi * median_radius
 checkpoint_median_length = line_length + loop_median_length
 lap_median_length = 2.0 * checkpoint_median_length
-
 half_track_width = 0.225
+blue_width = 0.15
 wrong_way_min = 0.275
 wrong_way_max = median_radius
 
@@ -58,8 +59,6 @@ class DriveItEnv(gym.Env):
         low  = np.array([ -1.0, -1.0, -1.0, -1.0, 0.0 ])
 
         self.action_space = spaces.Discrete(len(steer_actions))
-        # for a continuous action space:
-        # self.action_space = spaces.Box(self.min_action, self.max_action, shape = (1,))
         self.observation_space = spaces.Box(low, high)
 
         fname = path.join(path.dirname(__file__), "track.png")
@@ -102,6 +101,7 @@ class DriveItEnv(gym.Env):
             throttle = int(self._safe_throttle(steer) * np.random.uniform() / throttle_step) * throttle_step
 
         else:
+            # the default startup position, on the lap threshold
             x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
             x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
             throttle = 0.0
@@ -115,7 +115,9 @@ class DriveItEnv(gym.Env):
 
 
     def _dsdt(self, s, t):
-
+        '''
+        Computes derivatives of state parameters.
+        '''
         x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = s
 
         # position
@@ -139,14 +141,13 @@ class DriveItEnv(gym.Env):
 
     def _step(self, action):
         '''
-        Executes the specified action, computes a new state and the reward.
+        Executes the specified action, computes a new state, observation, belief and reward.
         '''
-
         self.time += dt
 
         # initial state
         x, y, theta, steer_, throttle_, x_m_, y_m_ = self.state
-        x_m_hat, y_m_hat, theta_hat_ = self.belief
+        x_m_hat_, y_m_hat_, theta_hat_ = self.belief
         v = v_max * throttle_
         K = K_max * steer_
 
@@ -155,7 +156,7 @@ class DriveItEnv(gym.Env):
         steer = max(min(steer_ + ds, 1.0), -1.0)
 
         dp = throttle_actions[action] * throttle_step
-        dp = self._throttle_override(steer_ + ds, throttle_, dp)
+        dp = self._safe_throttle_move(steer_ + ds, throttle_, dp)
         throttle = max(min(throttle_ + dp, 1.0), 0.0)
         
         dv = dp / dt
@@ -163,7 +164,7 @@ class DriveItEnv(gym.Env):
         v_hat = 0.0 if v == 0 else np.random.normal(v, v * 0.01)
 
         s_0 = (x, y, theta, x_m_, y_m_, v, K, \
-               x_m_hat, y_m_hat, theta_hat_, v_hat, \
+               x_m_hat_, y_m_hat_, theta_hat_, v_hat, \
                dv, dK)
 
         # integrate to get new state and belief
@@ -187,9 +188,9 @@ class DriveItEnv(gym.Env):
             dx_m += lap_median_length
             x_m_hat = -checkpoint_median_length
 
-        # correction from floor sensor
+        # lateral position correction from the floor sensor
         if blueness != 0.0:
-            y_m_hat = y_m
+            y_m_hat = np.copysign(half_track_width + blue_width * (blueness - 1), y_m_hat_)
     
         # are we done yet?
         out = blueness >= blue_threshold
@@ -214,7 +215,7 @@ class DriveItEnv(gym.Env):
 
     def _median_distance(self, x, y, current_mdist):
         '''
-        Provides a normalized longitudinal position along the track.
+        Calculates the normalized longitudinal position along the track.
         
         Returns (x_m, lap, checkpoint) where:
         x_m: is the normalized longitudinal position along the track,
@@ -378,15 +379,15 @@ class DriveItEnv(gym.Env):
                 return True
 
 
-    def _throttle_override(self, steer, throttle, dp):
+    def _safe_throttle_move(self, steer, throttle, desired_change):
         '''
-        Indicates how to move the throttle based on safe speed for the specified steering.
+        Moves the throttle by the desired amout or according to the safe speed limit.
         '''
         safe = self._safe_throttle(steer)
-        if throttle + dp > safe:
+        if throttle + desired_change > safe:
             return math.copysign(throttle_step, safe - throttle)
         else:
-            return throttle + dp
+            return throttle + desired_change
 
     def _safe_throttle(self, steer):
         '''
@@ -396,6 +397,9 @@ class DriveItEnv(gym.Env):
 
 
     def _render(self, mode='human', close=False):
+        '''
+        Draws the track and the car.
+        '''
         if close:
             if self.viewer is not None:
                 self.viewer.close()
@@ -476,10 +480,10 @@ class DriveItEnv(gym.Env):
 
     def _blueness(self, x, y):
         '''
-        Gets the _blueness_ of the track at the specified coordinates.
+        Gets the blueness of the track at the specified coordinates.
 
         The blueness is the normalized difference between the blue and the red 
-        channels of the RGB color sensor.
+        channels of the (simulated) RGB color sensor.
         '''
         b, g, r, a = self._track_color(x, y)
         if a == 0:
