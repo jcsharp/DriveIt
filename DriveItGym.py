@@ -122,25 +122,23 @@ class DriveItEnv(gym.Env):
         '''
         Computes derivatives of state parameters.
         '''
-        x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = s
+        x_m, y_m, theta, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = s
 
         # position
-        dx = v * cos(theta)
-        dy = v * sin(theta)
         median_heading, _ = self._median_properties(x_m)
         err_heading = canonical_angle(theta - median_heading)
-        dxm = v * cos(err_heading)
-        dym = v * sin(err_heading)
-        dtheta = v * K
+        x_m_dot = v * cos(err_heading)
+        y_m_dot = v * sin(err_heading)
+        theta_dot = v * K
 
         # belief
         median_heading, _ = self._median_properties(x_m_hat)
         err_heading = canonical_angle(theta_hat - median_heading)
-        dxmh = v * cos(err_heading)
-        dymh = v * sin(err_heading)
-        dthetah = v_hat * K
+        x_m_hat_dot = v * cos(err_heading)
+        y_m_hat_dot = v * sin(err_heading)
+        theta_hat_dot = v_hat * K
 
-        return dx, dy, dtheta, dxm, dym, dv, dK, dxmh, dymh, dthetah, dv, 0.0, 0.0
+        return x_m_dot, y_m_dot, theta_dot, dv, dK, x_m_hat_dot, y_m_hat_dot, theta_hat_dot, dv, 0.0, 0.0
 
 
     def _step(self, action):
