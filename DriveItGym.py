@@ -10,14 +10,14 @@ from gym import spaces
 from gym.utils import seeding
 from gym.envs.classic_control import rendering
 import numpy as np
-from numpy import cos, sin, pi
+from numpy import cos, sin, pi, arctan2
 from os import path
 
 steer_step = 0.1
 throttle_step = 0.1
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
-blue_threshold = 0.75
+blue_threshold = 0.9
 fps = 60.0
 dt = 1.0 / fps
 K_max = 4.5
@@ -25,6 +25,7 @@ v_max = 2.5
 
 # track metrics
 median_radius = 0.375
+median_curvature = 1.0 / median_radius
 line_length = 2.0 * median_radius
 loop_median_length = 3.0 / 2.0 * pi * median_radius
 checkpoint_median_length = line_length + loop_median_length
@@ -93,7 +94,8 @@ class DriveItEnv(gym.Env):
             x_m = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
             y_m = np.random.uniform(-0.03, 0.03)
             x, y = self._median_to_cartesian(x_m, y_m)
-            theta, steer = self._median_properties(x_m)
+            theta, K_m = self.median_properties(x_m)
+            steer = K_m / K_max
 
             # add some noise
             theta += np.random.uniform(-pi / 36.0, pi / 36.0)
@@ -102,14 +104,14 @@ class DriveItEnv(gym.Env):
 
         else:
             # the default startup position, on the lap threshold
-            x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
-            x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
-            throttle = 0.0
+            x_m, y_m, theta, steer, throttle = 0.0, 0.0, 0.0, 0.0, 0.0
 
-        
+        x, y = self._median_to_cartesian(x_m, y_m)
+
         self.time = 0.0
-        self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m)
+        self.state = (x_m, y_m, theta, steer, throttle, x_m)
         self.belief = (x_m, y_m, theta, throttle * v_max, 0.0)
+        self.position = (x, y, theta, steer)
         if self.show_belief_state:
             observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
         else:
@@ -122,23 +124,33 @@ class DriveItEnv(gym.Env):
         '''
         Computes derivatives of state parameters.
         '''
-        x_m, y_m, theta, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = s
+        x_m, y_m, theta, v, K, dv, dK = s
 
-        # position
-        median_heading, _ = self._median_properties(x_m)
-        err_heading = canonical_angle(theta - median_heading)
-        x_m_dot = v * cos(err_heading)
-        y_m_dot = v * sin(err_heading)
+        median_heading, median_curvature = self.median_properties(x_m)
+        alpha = canonical_angle(theta - median_heading)
+
+        vx = v * cos(alpha)
+        vy = v * sin(alpha)
+        if median_curvature == 0:
+            x_m_dot = vx
+            y_m_dot = vy
+        else:
+            beta = arctan2(vx, median_radius + vy)
+            x_m_dot = median_radius * beta
+            y_m_dot = vx / sin(beta) - median_radius
+
         theta_dot = v * K
 
-        # belief
-        median_heading, _ = self._median_properties(x_m_hat)
-        err_heading = canonical_angle(theta_hat - median_heading)
-        x_m_hat_dot = v * cos(err_heading)
-        y_m_hat_dot = v * sin(err_heading)
-        theta_hat_dot = v_hat * K
+        return x_m_dot, y_m_dot, theta_dot, dv, dK, 0.0, 0.0
 
-        return x_m_dot, y_m_dot, theta_dot, dv, dK, x_m_hat_dot, y_m_hat_dot, theta_hat_dot, dv, 0.0, 0.0
+
+    def _move(self, s):
+        I = rk4(self._dsdt, s, [0.0, dt])
+        x_m, y_m, theta, v, K, dv, dK = I[1]
+        x_m = wrap(x_m, -checkpoint_median_length, checkpoint_median_length)
+        y_m = wrap(y_m, -half_track_width, half_track_width)
+        theta = canonical_angle(theta)
+        return x_m, y_m, theta
 
 
     def _step(self, action):
@@ -148,7 +160,7 @@ class DriveItEnv(gym.Env):
         self.time += dt
 
         # initial state
-        x, y, theta, steer_, throttle_, x_m_, y_m_, d = self.state
+        x_m_, y_m_, theta, steer_, throttle_, d = self.state
         x_m_hat_, y_m_hat_, theta_hat_, v_hat_, bias = self.belief
         v = v_max * throttle_
         K = K_max * steer_
@@ -164,28 +176,29 @@ class DriveItEnv(gym.Env):
         dv = dp / dt
         dK = K_max * ds / dt
 
-        s_0 = (x, y, theta, x_m_, y_m_, v, K, \
-               x_m_hat_, y_m_hat_, theta_hat_, v_hat_, \
-               dv, dK)
+        # move the car
+        x_m, y_m, theta = self._move((x_m_, y_m_, theta, v, K, dv, dK))
+        d += v * dt
 
-        # integrate to get new state and belief
-        I = rk4(self._dsdt, s_0, [0.0, dt])
-        x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = I[1]
-        theta = canonical_angle(theta)
-        d += v_hat * dt
+        # move the belief
+        x_m_hat, y_m_hat, _ = self._move((x_m_hat_, y_m_hat_, theta_hat_, v_hat_, K, dv, dK))
 
         # add noise
-        bias = max(-0.01, min(0.01, np.random.normal(bias, pi * 0.0001)))
-        theta_hat = canonical_angle(theta + bias)
-        v_hat = 0.0 if throttle == 0 else np.random.normal(throttle, throttle * 0.0001) * v_max
+        #bias = max(-0.01, min(0.01, np.random.normal(bias, pi * 0.0001)))
+        #theta_hat = canonical_angle(theta + bias)
+        #v_hat = 0.0 if throttle == 0 else np.random.normal(throttle, throttle * 0.0001) * v_max
+
+        theta_hat = theta
+        v_hat = throttle * v_max
 
         # read sensors
+        x, y = self._median_to_cartesian(x_m, y_m)
         blueness = self._blueness(x, y)
 
         # check progress along the track
-        x_m, lap, checkpoint = self._median_distance(x, y, x_m_)
-        y_m = self._lateral_error(x, y, x_m)
         dx_m = x_m - x_m_
+        lap = x_m_ < 0.0 and x_m > 0.0
+        checkpoint = x_m_ > 0.0 and x_m < 0.0
         if lap:
             x_m_hat = 0
             d = 0
@@ -200,7 +213,7 @@ class DriveItEnv(gym.Env):
     
         # are we done yet?
         out = blueness >= blue_threshold
-        wrong_way = self._is_wrong_way(x, y, theta, x_m < 0.0)
+        wrong_way = abs(y_m) > half_track_width
         timeout = self.time >= self.time_limit
         done = out or wrong_way or timeout
 
@@ -209,8 +222,9 @@ class DriveItEnv(gym.Env):
         if out or wrong_way:
             reward = self.out_reward
 
-        self.state = (x, y, theta, steer, throttle, x_m, y_m, d)
+        self.state = (x_m, y_m, theta, steer, throttle, d)
         self.belief = (x_m_hat, y_m_hat, theta_hat, v_hat, bias)
+        self.position = (x, y, theta, steer)
         if self.show_belief_state:
             observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, v_hat / v_max))
         else:
@@ -221,44 +235,6 @@ class DriveItEnv(gym.Env):
             'lap': lap,
             'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
         }
-
-
-    def _median_distance(self, x, y, current_mdist):
-        '''
-        Calculates the normalized longitudinal position along the track.
-        
-        Returns (x_m, lap, checkpoint) where:
-        x_m: is the normalized longitudinal position along the track,
-        lap: is True if the car just passed the lap threshold
-        checkpoint: is True if the car just passed the checkpoint threshold
-        '''
-
-        # on central cross
-        if abs(x) <= median_radius and abs(y) <= median_radius:
-
-            # lap straight line
-            if current_mdist > - loop_median_length and current_mdist <= line_length:
-                lap = current_mdist < 0
-                return x + median_radius, lap, False
-
-            # checkpoint straight line
-            else:
-                checkpoint = current_mdist > 0
-                return -checkpoint_median_length + y + median_radius, False, checkpoint
-
-        # lower-right loop
-        if x > -median_radius and y < median_radius:
-            dx = x - median_radius
-            dy = -y - median_radius
-            alpha = np.arctan2(dy, dx) + pi / 2.0
-            return line_length + alpha * median_radius, False, False
-
-        # upper-left loop
-        else:
-            dy = y - median_radius
-            dx = -x - median_radius
-            alpha = np.arctan2(dx, dy) + pi / 2.0
-            return -loop_median_length + alpha * median_radius, False, False
 
 
     def _median_to_cartesian(self, x_m, y_m):
@@ -290,9 +266,9 @@ class DriveItEnv(gym.Env):
                 return x, y
 
 
-    def _median_properties(self, x_m):
+    def median_properties(self, x_m):
         '''
-        Calculates the tangent and curvature of a specific positio on the track median.
+        Gets the heading and curvature of a specific position on the track median.
         '''
         # before checkpoint
         if x_m >= 0:
@@ -302,7 +278,7 @@ class DriveItEnv(gym.Env):
             # lower-right loop
             else:
                 alpha = (x_m - line_length) / median_radius
-                return canonical_angle(-alpha), -1.0 / median_radius / K_max
+                return canonical_angle(-alpha), -1.0 / median_radius
 
         # after checkpoint
         else:
@@ -312,81 +288,7 @@ class DriveItEnv(gym.Env):
             # upper-left loop
             else:
                 alpha = -x_m / median_radius
-                return canonical_angle(-alpha), 1.0 / median_radius / K_max
-
-
-    def _lateral_error(self, x, y, x_m):
-        '''
-        Calculates the lateral distance between the car center and the track median.
-        '''
-
-        # before checkpoint
-        if x_m >= 0:
-            # lap straight line
-            if x_m < line_length:
-                y_m = y
-
-            # lower-right loop
-            else:
-                dx = x - median_radius
-                dy = y + median_radius
-                y_m = math.sqrt(dx ** 2 + dy ** 2) - median_radius
-
-        # after checkpoint
-        else:
-            # checkpoint straight line
-            if x_m < -loop_median_length:
-                y_m = -x
-
-            # upper-left loop
-            else:
-                dx = x + median_radius
-                dy = y - median_radius
-                y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2) 
-
-        return y_m
-
-
-    def median_error(self, look_ahead=0.0):
-        '''
-        Compares the current car position with a trajectory that strictly 
-        follows the track median.
-
-        Returns the lateral, heading and steering error.
-        '''
-        
-        x, y, theta, steer, trottle, mdist_ = self.state
-
-        if look_ahead != 0.0:
-            mdist = mdist_ + look_ahead
-            if mdist > checkpoint_median_length:
-                mdist -= lap_median_length
-        else:
-            mdist = mdist_
-        
-        theta_, steer_ = self._median_properties(mdist)
-
-        lat_err = self._lateral_error(x, y, mdist_) / half_track_width
-        h_err = canonical_angle(theta - theta_) / pi
-        st_err = steer - steer_
-
-        return np.array((lat_err, h_err, st_err))
-
-
-    def _is_wrong_way(self, x, y, theta, checkpoint):
-        '''
-        Checks if the car is making an illegal turn at the crossing.
-        '''
-        if abs(x) < half_track_width:
-            if y > wrong_way_min and y < wrong_way_max and theta > 0:
-                return not checkpoint
-            if y < -wrong_way_min and y > -wrong_way_max and theta < 0:
-                return True
-        elif abs(y) < half_track_width:
-            if x > wrong_way_min and x < wrong_way_max and abs(theta) < pi / 2.0:
-                return checkpoint
-            if x < -wrong_way_min and x > -wrong_way_max and abs(theta) > pi / 2.0:
-                return True
+                return canonical_angle(-alpha), 1.0 / median_radius
 
 
     def _safe_throttle_move(self, steer, throttle, desired_change):
@@ -463,7 +365,7 @@ class DriveItEnv(gym.Env):
             carout.add_attr(self.cartrans)
             self.viewer.add_geom(carout)
             
-        x, y, theta, steer, _, _, _, _ = self.state
+        x, y, theta, steer = self.position
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
         self.steertrans.set_rotation(steer * pi / 2.0)
