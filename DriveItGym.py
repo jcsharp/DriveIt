@@ -135,9 +135,10 @@ class DriveItEnv(gym.Env):
             x_m_dot = vx
             y_m_dot = vy
         else:
-            beta = arctan2(vx, median_radius + vy)
-            x_m_dot = median_radius * beta
-            y_m_dot = vx / sin(beta) - median_radius
+            r_m = math.copysign(median_radius, median_curvature)
+            beta = arctan2(vx, vy - r_m)
+            x_m_dot = r_m * beta
+            y_m_dot = r_m - vx / sin(beta)
 
         theta_dot = v * K
 
@@ -299,7 +300,7 @@ class DriveItEnv(gym.Env):
         if throttle + desired_change > safe:
             return math.copysign(throttle_step, safe - throttle)
         else:
-            return throttle + desired_change
+            return desired_change
 
     def _safe_throttle(self, steer):
         '''
