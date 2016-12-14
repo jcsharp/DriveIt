@@ -17,7 +17,7 @@ steer_step = 0.1
 throttle_step = 0.1
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
-blue_threshold = 0.9
+blue_threshold = 0.75
 fps = 60.0
 dt = 1.0 / fps
 K_max = 4.5
@@ -129,16 +129,25 @@ class DriveItEnv(gym.Env):
         median_heading, median_curvature = self.median_properties(x_m)
         alpha = canonical_angle(theta - median_heading)
 
-        vx = v * cos(alpha)
-        vy = v * sin(alpha)
         if median_curvature == 0:
-            x_m_dot = vx
-            y_m_dot = vy
+            x_m_dot = v * cos(alpha)
+            y_m_dot = v * sin(alpha)
         else:
-            r_m = math.copysign(median_radius, median_curvature)
-            beta = arctan2(vx, vy - r_m)
-            x_m_dot = r_m * beta
-            y_m_dot = r_m - vx / sin(beta)
+            x_, y_ = self._median_to_cartesian(x_m, 0.0)
+            x = x_ + v * cos(theta)
+            y = y_ + v * sin(theta)
+            x_m_dot = self._median_distance(x, y, x_m)
+            y_m_dot = self._lateral_distance(x, y, x_m + x_m_dot)
+
+            #r_m = math.copysign(median_radius, median_curvature)
+            #beta = arctan2(vx, vy - r_m)
+            #x_m_dot = r_m * beta
+            #y_m_dot = r_m - vx / sin(beta)
+
+            #beta = arctan2(vx, median_radius + vy)
+            #x_m_dot = median_radius * beta
+            #y_m_dot = vx / sin(beta) - median_radius
+
 
         theta_dot = v * K
 
@@ -149,7 +158,6 @@ class DriveItEnv(gym.Env):
         I = rk4(self._dsdt, s, [0.0, dt])
         x_m, y_m, theta, v, K, dv, dK = I[1]
         x_m = wrap(x_m, -checkpoint_median_length, checkpoint_median_length)
-        y_m = wrap(y_m, -half_track_width, half_track_width)
         theta = canonical_angle(theta)
         return x_m, y_m, theta
 
@@ -265,6 +273,69 @@ class DriveItEnv(gym.Env):
                 x = (y_m - median_radius) * (1 + sin(alpha))
                 y = (median_radius - y_m) * (1 - cos(alpha))
                 return x, y
+
+
+    def _median_distance(self, x, y, current_x_m):
+        '''
+        Calculates the normalized longitudinal position along the track.
+        '''
+
+        # on central cross
+        if abs(x) <= median_radius and abs(y) <= median_radius:
+
+            # lap straight line
+            if current_x_m > - loop_median_length and current_x_m <= line_length:
+                return x + median_radius
+
+            # checkpoint straight line
+            else:
+                return -checkpoint_median_length + y + median_radius
+
+        # lower-right loop
+        if x > -median_radius and y < median_radius:
+            dx = x - median_radius
+            dy = -y - median_radius
+            alpha = np.arctan2(dy, dx) + pi / 2.0
+            return line_length + alpha * median_radius
+
+        # upper-left loop
+        else:
+            dy = y - median_radius
+            dx = -x - median_radius
+            alpha = np.arctan2(dx, dy) + pi / 2.0
+            return -loop_median_length + alpha * median_radius
+
+
+    def _lateral_distance(self, x, y, x_m):
+        '''
+        Calculates the lateral distance between the car center and the track median.
+        '''
+
+        # before checkpoint
+        if x_m >= 0:
+            # lap straight line
+            if x_m < line_length:
+                y_m = y
+
+            # lower-right loop
+            else:
+                dx = x - median_radius
+                dy = y + median_radius
+                y_m = math.sqrt(dx ** 2 + dy ** 2) - median_radius
+
+        # after checkpoint
+        else:
+            # checkpoint straight line
+            if x_m < -loop_median_length:
+                y_m = -x
+
+            # upper-left loop
+            else:
+                dx = x + median_radius
+                dy = y - median_radius
+                y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2) 
+
+        return y_m
 
 
     def median_properties(self, x_m):
