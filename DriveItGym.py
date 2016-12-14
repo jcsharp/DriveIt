@@ -42,11 +42,11 @@ class DriveItEnv(gym.Env):
 
 
     def __init__(self, time_limit=10, throttle_limit=1.0, gamma=0.98, \
-                 show_true_median_pos=False, trail_length=2.4):
+                 show_belief_state=False, trail_length=2.4):
         
         self.time_limit = time_limit
         self.throttle_limit = throttle_limit
-        self.show_true_median_pos = show_true_median_pos
+        self.show_belief_state = show_belief_state
         self.trail_length = trail_length
 
         # corresponds to the maximum discounted reward over a median lap
@@ -108,9 +108,13 @@ class DriveItEnv(gym.Env):
 
         
         self.time = 0.0
-        self.state = (x, y, theta, steer, throttle, x_m, y_m)
+        self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m)
         self.belief = (x_m, y_m, theta)
-        observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
+        if self.show_belief_state:
+            observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
+        else:
+            observation = np.array((x_m / checkpoint_median_length, 0.0, theta / pi, steer, throttle))
+
         return observation
 
 
@@ -146,7 +150,7 @@ class DriveItEnv(gym.Env):
         self.time += dt
 
         # initial state
-        x, y, theta, steer_, throttle_, x_m_, y_m_ = self.state
+        x, y, theta, steer_, throttle_, x_m_, y_m_, d = self.state
         x_m_hat_, y_m_hat_, theta_hat_ = self.belief
         v = v_max * throttle_
         K = K_max * steer_
@@ -171,6 +175,7 @@ class DriveItEnv(gym.Env):
         I = rk4(self._dsdt, s_0, [0.0, dt])
         x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = I[1]
         theta = canonical_angle(theta)
+        d += v_hat * dt
 
         # add noise
         theta_hat = canonical_angle(np.random.normal(theta, pi * 0.01))
@@ -184,9 +189,11 @@ class DriveItEnv(gym.Env):
         dx_m = x_m - x_m_
         if lap:
             x_m_hat = 0
+            d = 0
         if checkpoint:
             dx_m += lap_median_length
             x_m_hat = -checkpoint_median_length
+            d = -checkpoint_median_length
 
         # lateral position correction from the floor sensor
         if blueness != 0.0:
@@ -203,9 +210,13 @@ class DriveItEnv(gym.Env):
         if out or wrong_way:
             reward = self.out_reward
 
-        self.state = (x, y, theta, steer, throttle, x_m, y_m)
+        self.state = (x, y, theta, steer, throttle, x_m, y_m, d)
         self.belief = (x_m_hat, y_m_hat, theta_hat)
-        observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, throttle))
+        if self.show_belief_state:
+            observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, throttle))
+        else:
+            observation = np.array((d / checkpoint_median_length, theta_hat / pi, steer, throttle, blueness))
+
         return observation, reward, done, { \
             'checkpoint': checkpoint,
             'lap': lap,
@@ -453,7 +464,7 @@ class DriveItEnv(gym.Env):
             carout.add_attr(self.cartrans)
             self.viewer.add_geom(carout)
             
-        x, y, theta, steer, _, _, _ = self.state
+        x, y, theta, steer, _, _, _, _ = self.state
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
         self.steertrans.set_rotation(steer * pi / 2.0)
