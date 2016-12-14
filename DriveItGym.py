@@ -42,7 +42,7 @@ class DriveItEnv(gym.Env):
 
 
     def __init__(self, time_limit=10, throttle_limit=1.0, gamma=0.98, \
-                 show_belief_state=False, trail_length=2.4):
+                 show_belief_state=True, trail_length=2.4):
         
         self.time_limit = time_limit
         self.throttle_limit = throttle_limit
@@ -109,7 +109,7 @@ class DriveItEnv(gym.Env):
         
         self.time = 0.0
         self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m)
-        self.belief = (x_m, y_m, theta)
+        self.belief = (x_m, y_m, theta, throttle * v_max, 0.0)
         if self.show_belief_state:
             observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
         else:
@@ -134,7 +134,7 @@ class DriveItEnv(gym.Env):
         dtheta = v * K
 
         # belief
-        #median_heading, _ = self._median_properties(x_m_hat)
+        median_heading, _ = self._median_properties(x_m_hat)
         err_heading = canonical_angle(theta_hat - median_heading)
         dxmh = v * cos(err_heading)
         dymh = v * sin(err_heading)
@@ -151,7 +151,7 @@ class DriveItEnv(gym.Env):
 
         # initial state
         x, y, theta, steer_, throttle_, x_m_, y_m_, d = self.state
-        x_m_hat_, y_m_hat_, theta_hat_ = self.belief
+        x_m_hat_, y_m_hat_, theta_hat_, v_hat_, bias = self.belief
         v = v_max * throttle_
         K = K_max * steer_
 
@@ -165,10 +165,9 @@ class DriveItEnv(gym.Env):
         
         dv = dp / dt
         dK = K_max * ds / dt
-        v_hat = 0.0 if v == 0 else np.random.normal(v, v * 0.01)
 
         s_0 = (x, y, theta, x_m_, y_m_, v, K, \
-               x_m_hat_, y_m_hat_, theta_hat_, v_hat, \
+               x_m_hat_, y_m_hat_, theta_hat_, v_hat_, \
                dv, dK)
 
         # integrate to get new state and belief
@@ -178,7 +177,9 @@ class DriveItEnv(gym.Env):
         d += v_hat * dt
 
         # add noise
-        theta_hat = canonical_angle(np.random.normal(theta, pi * 0.01))
+        bias = max(-0.01, min(0.01, np.random.normal(bias, pi * 0.0001)))
+        theta_hat = canonical_angle(theta + bias)
+        v_hat = 0.0 if throttle == 0 else np.random.normal(throttle, throttle * 0.0001) * v_max
 
         # read sensors
         blueness = self._blueness(x, y)
@@ -211,11 +212,11 @@ class DriveItEnv(gym.Env):
             reward = self.out_reward
 
         self.state = (x, y, theta, steer, throttle, x_m, y_m, d)
-        self.belief = (x_m_hat, y_m_hat, theta_hat)
+        self.belief = (x_m_hat, y_m_hat, theta_hat, v_hat, bias)
         if self.show_belief_state:
-            observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, throttle))
+            observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, v_hat / v_max))
         else:
-            observation = np.array((d / checkpoint_median_length, theta_hat / pi, steer, throttle, blueness))
+            observation = np.array((d / checkpoint_median_length, blueness, theta_hat / pi, steer, v_hat / v_max))
 
         return observation, reward, done, { \
             'checkpoint': checkpoint,
@@ -507,7 +508,24 @@ def canonical_angle(x):
     '''
     Gets the canonical value of an angle.
     '''
-    return ((x + np.pi) % (2 * np.pi)) - np.pi
+    return wrap(x, -pi, pi)
+
+
+def wrap(x, m, M):
+    """
+    :param x: a scalar
+    :param m: minimum possible value in range
+    :param M: maximum possible value in range
+    Wraps ``x`` so m <= x <= M; but unlike ``bound()`` which
+    truncates, ``wrap()`` wraps x around the coordinate system defined by m,M.\n
+    For example, m = -180, M = 180 (degrees), x = 360 --> returns 0.
+    """
+    diff = M - m
+    while x > M:
+        x = x - diff
+    while x < m:
+        x = x + diff
+    return x
 
 
 def rk4(derivs, y0, t, *args, **kwargs):
