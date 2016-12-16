@@ -108,8 +108,9 @@ class DriveItEnv(gym.Env):
 
         
         self.time = 0.0
-        self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m)
-        self.belief = (x_m, y_m, theta, throttle * v_max, 0.0)
+        self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m, 0.0)
+        self.belief = (x, y, theta, steer, throttle * v_max, x_m)
+
         if self.show_belief_state:
             observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
         else:
@@ -118,69 +119,55 @@ class DriveItEnv(gym.Env):
         return observation
 
 
-    def _dsdt(self, s, t):
+    def _dsdt(self, s, t, a, K_dot):
         '''
         Computes derivatives of state parameters.
         '''
-        x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = s
+        x, y, theta, v, K, d = s
+        x_dot = v * cos(theta)
+        y_dot = v * sin(theta)
+        theta_dot = v * K
+        return x_dot, y_dot, theta_dot, a, K_dot, v
 
-        # position
-        dx = v * cos(theta)
-        dy = v * sin(theta)
-        median_heading, _ = self._median_properties(x_m)
-        err_heading = canonical_angle(theta - median_heading)
-        dxm = v * cos(err_heading)
-        dym = v * sin(err_heading)
-        dtheta = v * K
 
-        # belief
-        median_heading, _ = self._median_properties(x_m_hat)
-        err_heading = canonical_angle(theta_hat - median_heading)
-        dxmh = v * cos(err_heading)
-        dymh = v * sin(err_heading)
-        dthetah = v_hat * K
-
-        return dx, dy, dtheta, dxm, dym, dv, dK, dxmh, dymh, dthetah, dv, 0.0, 0.0
+    def _move(self, x, y, theta, v, K, d, a, K_dot):
+        s = x, y, theta, v, K, d
+        I = rk4(self._dsdt, s, [0.0, dt], a, K_dot)
+        x, y, theta, v, K, d = I[1]
+        theta = canonical_angle(theta)
+        return x, y, theta, v, K, d
 
 
     def _step(self, action):
         '''
-        Executes the specified action, computes a new state, observation, belief and reward.
+        Executes the specified action, computes a new state, observation, and reward.
         '''
         self.time += dt
 
         # initial state
-        x, y, theta, steer_, throttle_, x_m_, y_m_, d = self.state
-        x_m_hat_, y_m_hat_, theta_hat_, v_hat_, bias = self.belief
-        v = v_max * throttle_
-        K = K_max * steer_
+        x_, y_, theta_, steer_, throttle_, x_m_, y_m_, d_, bias = self.state
+        v_ = v_max * throttle_
+        K_ = K_max * steer_
 
         # action
         ds = steer_actions[action] * steer_step
         steer = max(min(steer_ + ds, 1.0), -1.0)
 
         dp = throttle_actions[action] * throttle_step
-        dp = self._safe_throttle_move(steer_ + ds, throttle_, dp)
-        throttle = max(min(throttle_ + dp, 1.0), 0.0)
-        
-        dv = dp / dt
-        dK = K_max * ds / dt
-        v_hat = 0.0 if v == 0 else np.random.normal(v, v * 0.01)
+        throttle = self._safe_throttle_move(steer_ + ds, throttle_, dp)
 
-        s_0 = (x, y, theta, x_m_, y_m_, v, K, \
-               x_m_hat_, y_m_hat_, theta_hat_, v_hat, \
-               dv, dK)
+        a = (throttle - throttle_) / dt
+        K_dot = K_max * (steer - steer_) / dt
 
-        # integrate to get new state and belief
-        I = rk4(self._dsdt, s_0, [0.0, dt])
-        x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = I[1]
-        theta = canonical_angle(theta)
-        d += v_hat * dt
+        # get new state
+        x, y, theta, v, K, d = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
 
-        # add noise
+        # add observation noise
         bias = max(-0.01, min(0.01, np.random.normal(bias, pi * 0.0001)))
         theta_hat = canonical_angle(theta + bias)
-        v_hat = 0.0 if throttle == 0 else np.random.normal(throttle, throttle * 0.0001) * v_max
+        v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.01)
+        v_hat = v + v_noise
+        d += v_noise * dt
 
         # read sensors
         blueness = self._blueness(x, y)
@@ -190,17 +177,11 @@ class DriveItEnv(gym.Env):
         y_m = self._lateral_error(x, y, x_m)
         dx_m = x_m - x_m_
         if lap:
-            x_m_hat = 0
             d = 0
         if checkpoint:
             dx_m += lap_median_length
-            x_m_hat = -checkpoint_median_length
             d = -checkpoint_median_length
 
-        # lateral position correction from the floor sensor
-        if blueness != 0.0:
-            y_m_hat = y_m #np.copysign(half_track_width + blue_width * (blueness - 1), y_m_hat_)
-    
         # are we done yet?
         out = blueness >= blue_threshold
         wrong_way = self._is_wrong_way(x, y, theta, x_m < 0.0)
@@ -212,18 +193,52 @@ class DriveItEnv(gym.Env):
         if out or wrong_way:
             reward = self.out_reward
 
-        self.state = (x, y, theta, steer, throttle, x_m, y_m, d)
-        self.belief = (x_m_hat, y_m_hat, theta_hat, v_hat, bias)
+        self.state = (x, y, theta, steer, throttle, x_m, y_m, d, bias)
+
+        observation = np.array((d / checkpoint_median_length, blueness, \
+                            theta_hat / pi, steer, v_hat / v_max))
+
         if self.show_belief_state:
-            observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, v_hat / v_max))
-        else:
-            observation = np.array((d / checkpoint_median_length, blueness, theta_hat / pi, steer, v_hat / v_max))
+            observation = np.array(self.update_belief(observation))
 
         return observation, reward, done, { \
             'checkpoint': checkpoint,
             'lap': lap,
             'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
         }
+
+
+    def update_belief(self, observation):
+
+        x_, y_, theta_, steer_, v_, d_ = self.belief
+        d, blueness, theta, steer, v = observation
+        K_ = K_max * steer_
+
+        # denormalize observation
+        d *= checkpoint_median_length
+        theta *= pi
+        v *= v_max
+
+        # update position
+        a = (v - v_) / dt
+        K_dot = K_max * (steer - steer_) / dt
+        x, y, _, _, _, _ = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
+
+        # check progress along the track
+        x_m, lap, checkpoint = self._median_distance(x, y, d_)
+        if lap:
+            x_m = 0
+        if checkpoint:
+            x_m = -checkpoint_median_length
+
+        # lateral position
+        y_m = self._lateral_error(x, y, x_m)
+        if blueness != 0.0:
+            y_m = np.copysign(half_track_width + blue_width * (blueness - 1), y_m)
+    
+        self.belief = (x, y, theta, steer, v, d)
+
+        return x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, v / v_max
 
 
     def _median_distance(self, x, y, current_mdist):
@@ -398,9 +413,9 @@ class DriveItEnv(gym.Env):
         '''
         safe = self._safe_throttle(steer)
         if throttle + desired_change > safe:
-            return math.copysign(throttle_step, safe - throttle)
+            return safe
         else:
-            return throttle + desired_change
+            return max(min(throttle + desired_change, 1.0), 0.0)
 
     def _safe_throttle(self, steer):
         '''
@@ -466,7 +481,7 @@ class DriveItEnv(gym.Env):
             carout.add_attr(self.cartrans)
             self.viewer.add_geom(carout)
             
-        x, y, theta, steer, _, _, _, _ = self.state
+        x, y, theta, steer, _, _, _, _, _ = self.state
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
         self.steertrans.set_rotation(steer * pi / 2.0)
