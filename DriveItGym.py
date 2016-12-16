@@ -42,11 +42,12 @@ class DriveItEnv(gym.Env):
 
 
     def __init__(self, time_limit=10, throttle_limit=1.0, gamma=0.98, \
-                 show_belief_state=False, trail_length=2.4):
+                 show_belief_state=False, noisy=True, trail_length=2.4):
         
         self.time_limit = time_limit
         self.throttle_limit = throttle_limit
         self.show_belief_state = show_belief_state
+        self.noisy = noisy
         self.trail_length = trail_length
 
         # corresponds to the maximum discounted reward over a median lap
@@ -164,12 +165,16 @@ class DriveItEnv(gym.Env):
         # get new state
         x, y, theta, _, _, d = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
 
-        # add observation noise
-        bias = max(-0.015, min(0.015, np.random.normal(bias, 0.0003)))
-        theta_hat = canonical_angle(theta + bias)
-        v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.01)
-        v_hat = v + v_noise
-        d += v_noise * dt
+        if self.noisy:
+            # add observation noise
+            bias = max(-0.015, min(0.015, np.random.normal(bias, 0.0003)))
+            theta_hat = canonical_angle(theta + bias)
+            v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.01)
+            v_hat = v + v_noise
+            d += v_noise * dt
+        else:
+            theta_hat = theta
+            v_hat = v
 
         # read sensors
         blueness = self._blueness(x, y)
@@ -229,7 +234,8 @@ class DriveItEnv(gym.Env):
         # lateral position
         y_m = self._lateral_error(x, y, x_m)
         if blueness != 0.0:
-            y_m = np.copysign(half_track_width + blue_width * (blueness - 1), y_m)
+            # the blue gradient is almost linear...
+            y_m = np.copysign(half_track_width + 0.03 + (blue_width + 0.045) * (blueness - 1), y_m)
     
         self.belief = (x, y, theta, steer, v, d)
 
