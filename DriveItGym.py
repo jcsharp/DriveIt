@@ -106,15 +106,16 @@ class DriveItEnv(gym.Env):
             x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
             throttle = 0.0
 
+        v = throttle * v_max
         
         self.time = 0.0
         self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m, 0.0)
-        self.belief = (x, y, theta, steer, throttle * v_max, x_m)
+        self.belief = (x, y, theta, steer, v, x_m)
 
         if self.show_belief_state:
-            observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
+            observation = self._normalize((x_m, y_m, theta, steer, v))
         else:
-            observation = np.array((x_m / checkpoint_median_length, 0.0, theta / pi, steer, throttle))
+            observation = self._normalize((x_m, 0.0, theta, steer, v))
 
         return observation
 
@@ -155,15 +156,16 @@ class DriveItEnv(gym.Env):
 
         dp = throttle_actions[action] * throttle_step
         throttle = self._safe_throttle_move(steer_ + ds, throttle_, dp)
+        v = v_max * throttle
 
-        a = (throttle - throttle_) / dt
+        a = v_max * (throttle - throttle_) / dt
         K_dot = K_max * (steer - steer_) / dt
 
         # get new state
-        x, y, theta, v, K, d = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
+        x, y, theta, _, _, d = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
 
         # add observation noise
-        bias = max(-0.01, min(0.01, np.random.normal(bias, pi * 0.0001)))
+        bias = max(-0.015, min(0.015, np.random.normal(bias, 0.0003)))
         theta_hat = canonical_angle(theta + bias)
         v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.01)
         v_hat = v + v_noise
@@ -195,13 +197,11 @@ class DriveItEnv(gym.Env):
 
         self.state = (x, y, theta, steer, throttle, x_m, y_m, d, bias)
 
-        observation = np.array((d / checkpoint_median_length, blueness, \
-                            theta_hat / pi, steer, v_hat / v_max))
-
+        observation = (d, blueness, theta_hat, steer, v_hat)
         if self.show_belief_state:
-            observation = np.array(self.update_belief(observation))
+            observation = self.update_belief(observation)
 
-        return observation, reward, done, { \
+        return self._normalize(observation), reward, done, { \
             'checkpoint': checkpoint,
             'lap': lap,
             'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
@@ -213,11 +213,6 @@ class DriveItEnv(gym.Env):
         x_, y_, theta_, steer_, v_, d_ = self.belief
         d, blueness, theta, steer, v = observation
         K_ = K_max * steer_
-
-        # denormalize observation
-        d *= checkpoint_median_length
-        theta *= pi
-        v *= v_max
 
         # update position
         a = (v - v_) / dt
@@ -238,7 +233,12 @@ class DriveItEnv(gym.Env):
     
         self.belief = (x, y, theta, steer, v, d)
 
-        return x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, v / v_max
+        return x_m, y_m, theta, steer, v
+
+    
+    def _normalize(self, b):
+        x, y, th, st, v = b
+        return np.array((x / checkpoint_median_length, y / half_track_width, th / pi, st, v / v_max))
 
 
     def _median_distance(self, x, y, current_mdist):
@@ -363,32 +363,6 @@ class DriveItEnv(gym.Env):
                 y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2) 
 
         return y_m
-
-
-    def median_error(self, look_ahead=0.0):
-        '''
-        Compares the current car position with a trajectory that strictly 
-        follows the track median.
-
-        Returns the lateral, heading and steering error.
-        '''
-        
-        x, y, theta, steer, trottle, mdist_ = self.state
-
-        if look_ahead != 0.0:
-            mdist = mdist_ + look_ahead
-            if mdist > checkpoint_median_length:
-                mdist -= lap_median_length
-        else:
-            mdist = mdist_
-        
-        theta_, steer_ = self._median_properties(mdist)
-
-        lat_err = self._lateral_error(x, y, mdist_) / half_track_width
-        h_err = canonical_angle(theta - theta_) / pi
-        st_err = steer - steer_
-
-        return np.array((lat_err, h_err, st_err))
 
 
     def _is_wrong_way(self, x, y, theta, checkpoint):
