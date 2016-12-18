@@ -114,7 +114,7 @@ class DriveItEnv(gym.Env):
         self.observation = (x_m, 0.0, theta, steer, v)
 
         if self.show_belief_state:
-            self.belief_position = (x, y)
+            self.belief_position = (x, y, x_m < 0)
             self.belief = (x_m, y_m, theta, steer, v, 0.0)
             return self._normalize_belief(self.belief)
         else:
@@ -167,9 +167,9 @@ class DriveItEnv(gym.Env):
 
         if self.noisy:
             # add observation noise
-            bias = max(-0.02, min(0.02, np.random.normal(bias, 0.001)))
+            bias = max(-0.017, min(0.017, np.random.normal(bias, 0.001)))
             theta_hat = canonical_angle(theta + bias)
-            v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.01)
+            v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.003)
             v_hat = v + v_noise
             d += v_noise * dt
         else:
@@ -221,34 +221,44 @@ class DriveItEnv(gym.Env):
 
     def update_belief(self, observation):
 
-        x_, y_ = self.belief_position
+        x_, y_, checkpoint = self.belief_position
         d_, b_, theta_, steer_, v_ = self.observation
         d, blueness, theta, steer, v = observation
         K_ = K_max * steer_
 
         # update position
-        a = (v - v_) / dt
+        a = ((v - v_) / dt + (d - d_) * dt) / 2.0 # average on speed and dist to reduce noise
         K_dot = K_max * (steer - steer_) / dt
         x, y, _, _, _, _ = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
 
-        # check progress along the track
-        x_m, lap, checkpoint = self._median_distance(x, y, d_)
-        if lap:
-            x_m = 0
-        if checkpoint:
+        x_m, _, _ = self._median_distance(x, y, d_)
+        if d == -checkpoint_median_length: # checkpoint
+            checkpoint = True
             x_m = -checkpoint_median_length
+            y = -median_radius
+
+        elif d == 0.0: # lap
+            checkpoint = False
+            x_m = 0
+            x = -median_radius
+        
+        if checkpoint and x_m > 0.0:
+            x_m = 0.0
+            x = -median_radius
+        
+        if x_m > checkpoint_median_length:
+            x_m = checkpoint_median_length
+            y = -median_radius
 
         # lateral position
         y_m = self._lateral_error(x, y, x_m)
-        #if blueness >= 0.2:
+        #if blueness >= 0.1:
         #    # the blue gradient is almost linear...
-        #    y_b = np.copysign(half_track_width + 0.03 + (blue_width + 0.045) * (blueness - 1), y_m)
+        #    y_b = np.copysign(half_track_width + 0.00 + (blue_width + 0.00) * (blueness - 1), y_m)
         #    dy = y_b - y_m
         #    y_m += dy / 3.0
-        #if (blueness != 0.0 and b_ == 0.0) or (blueness == 0.0 and b_ != 0.0):
-        #    y_m = np.copysign(half_track_width - blue_width - 0.004125, y_m)
-    
-        self.belief_position = (x, y)
+
+        self.belief_position = (x, y, checkpoint)
 
         return x_m, y_m, theta, steer, v, blueness
 
