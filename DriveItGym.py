@@ -111,11 +111,11 @@ class DriveItEnv(gym.Env):
         
         self.time = 0.0
         self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m, 0.0)
-        self.observation = self._normalize((x_m, 0.0, theta, steer, v))
+        self.observation = self._normalize_observation((x_m, 0.0, theta, steer, v))
 
         if self.show_belief_state:
             self.belief_state = (x, y, theta, steer, v, x_m, 0.0)
-            self.belief = self._normalize((x_m, y_m, theta, steer, v, 0.0))
+            self.belief = self._normalize_belief((x_m, y_m, theta, steer, v, 0.0))
             return self.belief 
         else:
             return self.observation
@@ -203,10 +203,10 @@ class DriveItEnv(gym.Env):
         self.state = (x, y, theta, steer, throttle, x_m, y_m, d, bias)
 
         observation = (d, blueness, theta_hat, steer, v_hat)
-        self.observation = self._normalize(observation)
+        self.observation = self._normalize_observation(observation)
 
         if self.show_belief_state:
-            self.belief = self._normalize(self.update_belief(observation))
+            self.belief = self._normalize_belief(self.update_belief(observation))
             retval = self.belief 
         else:
             retval = self.observation
@@ -251,7 +251,12 @@ class DriveItEnv(gym.Env):
         return x_m, y_m, theta, steer, v, blueness
 
     
-    def _normalize(self, b):
+    def _normalize_observation(self, o):
+        x, b, th, st, v = o
+        return np.array((x / checkpoint_median_length, b, th / pi, st, v / v_max))
+
+
+    def _normalize_belief(self, b):
         x, y, th, st, v, bl = b
         return np.array((x / checkpoint_median_length, y / half_track_width, th / pi, st, v / v_max, bl))
 
