@@ -111,14 +111,14 @@ class DriveItEnv(gym.Env):
         
         self.time = 0.0
         self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m, 0.0)
-        self.observation = self._normalize_observation((x_m, 0.0, theta, steer, v))
+        self.observation = (x_m, 0.0, theta, steer, v)
 
         if self.show_belief_state:
-            self.belief_state = (x, y, theta, steer, v, x_m, 0.0)
-            self.belief = self._normalize_belief((x_m, y_m, theta, steer, v, 0.0))
-            return self.belief 
+            self.belief_position = (x, y)
+            self.belief = (x_m, y_m, theta, steer, v, 0.0)
+            return self._normalize_belief(self.belief)
         else:
-            return self.observation
+            return self._normalize_observation(self.observation)
 
 
     def _dsdt(self, s, t, a, K_dot):
@@ -203,13 +203,14 @@ class DriveItEnv(gym.Env):
         self.state = (x, y, theta, steer, throttle, x_m, y_m, d, bias)
 
         observation = (d, blueness, theta_hat, steer, v_hat)
-        self.observation = self._normalize_observation(observation)
 
         if self.show_belief_state:
-            self.belief = self._normalize_belief(self.update_belief(observation))
-            retval = self.belief 
+            self.belief = self.update_belief(observation)
+            retval = self._normalize_belief(self.belief)
         else:
-            retval = self.observation
+            retval = self._normalize_observation(observation)
+
+        self.observation = observation
 
         return retval, reward, done, { \
             'checkpoint': checkpoint,
@@ -220,7 +221,8 @@ class DriveItEnv(gym.Env):
 
     def update_belief(self, observation):
 
-        x_, y_, theta_, steer_, v_, d_, b_ = self.belief_state
+        x_, y_ = self.belief_position
+        d_, b_, theta_, steer_, v_ = self.observation
         d, blueness, theta, steer, v = observation
         K_ = K_max * steer_
 
@@ -246,7 +248,7 @@ class DriveItEnv(gym.Env):
         #if (blueness != 0.0 and b_ == 0.0) or (blueness == 0.0 and b_ != 0.0):
         #    y_m = np.copysign(half_track_width - blue_width - 0.004125, y_m)
     
-        self.belief_state = (x, y, theta, steer, v, d, blueness)
+        self.belief_position = (x, y)
 
         return x_m, y_m, theta, steer, v, blueness
 
