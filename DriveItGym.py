@@ -17,7 +17,7 @@ steer_step = 0.1
 throttle_step = 0.1
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
-blue_threshold = 0.75
+blue_threshold = 0.9
 fps = 60.0
 dt = 1.0 / fps
 K_max = 4.5
@@ -56,8 +56,8 @@ class DriveItEnv(gym.Env):
         
         self.viewer = None
 
-        high = np.array([  1.0,  1.0,  1.0,  1.0, 1.0 ])
-        low  = np.array([ -1.0, -1.0, -1.0, -1.0, 0.0 ])
+        high = np.array([  1.0,  1.0,  1.0,  1.0, 1.0, 1.0 ])
+        low  = np.array([ -1.0, -1.0, -1.0, -1.0, 0.0, 0.0 ])
 
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
@@ -111,10 +111,10 @@ class DriveItEnv(gym.Env):
         
         self.time = 0.0
         self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m, 0.0)
-        self.belief = (x, y, theta, steer, v, x_m)
+        self.belief = (x, y, theta, steer, v, x_m, 0.0)
 
         if self.show_belief_state:
-            observation = self._normalize((x_m, y_m, theta, steer, v))
+            observation = self._normalize((x_m, y_m, theta, steer, v, 0.0))
         else:
             observation = self._normalize((x_m, 0.0, theta, steer, v))
 
@@ -167,7 +167,7 @@ class DriveItEnv(gym.Env):
 
         if self.noisy:
             # add observation noise
-            bias = max(-0.015, min(0.015, np.random.normal(bias, 0.0003)))
+            bias = max(-0.02, min(0.02, np.random.normal(bias, 0.001)))
             theta_hat = canonical_angle(theta + bias)
             v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.01)
             v_hat = v + v_noise
@@ -215,7 +215,7 @@ class DriveItEnv(gym.Env):
 
     def update_belief(self, observation):
 
-        x_, y_, theta_, steer_, v_, d_ = self.belief
+        x_, y_, theta_, steer_, v_, d_, b_ = self.belief
         d, blueness, theta, steer, v = observation
         K_ = K_max * steer_
 
@@ -233,18 +233,22 @@ class DriveItEnv(gym.Env):
 
         # lateral position
         y_m = self._lateral_error(x, y, x_m)
-        if blueness != 0.0:
-            # the blue gradient is almost linear...
-            y_m = np.copysign(half_track_width + 0.03 + (blue_width + 0.045) * (blueness - 1), y_m)
+        #if blueness >= 0.2:
+        #    # the blue gradient is almost linear...
+        #    y_b = np.copysign(half_track_width + 0.03 + (blue_width + 0.045) * (blueness - 1), y_m)
+        #    dy = y_b - y_m
+        #    y_m += dy / 3.0
+        #if (blueness != 0.0 and b_ == 0.0) or (blueness == 0.0 and b_ != 0.0):
+        #    y_m = np.copysign(half_track_width - blue_width - 0.004125, y_m)
     
-        self.belief = (x, y, theta, steer, v, d)
+        self.belief = (x, y, theta, steer, v, d, blueness)
 
-        return x_m, y_m, theta, steer, v
+        return x_m, y_m, theta, steer, v, blueness
 
     
     def _normalize(self, b):
-        x, y, th, st, v = b
-        return np.array((x / checkpoint_median_length, y / half_track_width, th / pi, st, v / v_max))
+        x, y, th, st, v, bl = b
+        return np.array((x / checkpoint_median_length, y / half_track_width, th / pi, st, v / v_max, bl))
 
 
     def _median_distance(self, x, y, current_mdist):
@@ -472,18 +476,36 @@ class DriveItEnv(gym.Env):
         return self.viewer.render(return_rgb_array=(mode == 'rgb_array'))
 
 
-    def _track_color(self, x, y):
+    def _img_color(self, img_x, img_y):
+        pos = img_x * 4 + img_y * self.track.img.width * 4
+        if pos < 0 or pos > len(self.track.img.data) + 4:
+            return None
+        else:
+            return self.track.img.data[pos:pos + 4]
+
+
+    def _track_color(self, x, y, n=0):
         '''
-        Gets the track color at the specified coordinates.
+        Gets the track color at the specified coordinates, averaging e pixels around that position.
         '''
         img_x = math.trunc((x + self.track.width / 2) / self.track.width * self.track.img.width)
         img_y = math.trunc((self.track.height - (y + self.track.height / 2)) \
             / self.track.height * self.track.img.height)
-        pos = img_x * 4 + img_y * self.track.img.width * 4
-        if pos < 0 or pos > len(self.track.img.data):
+        
+        count = 0
+        b, g, r, a = 0, 0, 0, 0
+        for i in range(img_x - n, img_x + n + 1):
+            for j in range(img_y - n, img_y + n + 1):
+                c = self._img_color(i, j)
+                if c != None:
+                    b_, g_, r_, a_ = c
+                    b += b_; g += g_; r += r_; a += a_
+                    count += 1
+
+        if count == 0:
             return (0, 0, 0, 0)
         else:
-            return self.track.img.data[pos:pos + 4]
+            return (b / count, g / count, r / count, a / count)
 
 
     def _blueness(self, x, y):
@@ -493,7 +515,7 @@ class DriveItEnv(gym.Env):
         The blueness is the normalized difference between the blue and the red 
         channels of the (simulated) RGB color sensor.
         '''
-        b, g, r, a = self._track_color(x, y)
+        b, g, r, a = self._track_color(x, y, n=1)
         if a == 0:
             return 1.0
         else:
