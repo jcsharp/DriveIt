@@ -92,10 +92,10 @@ class DriveItEnv(gym.Env):
                 theta, K = self._median_properties(x_m)
                 steer = K / c.specs.K_max
 
-                d = c.car_min_distance(placed_cars)
-                while d < 0.1:
-                    x_m = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
-                    d = c.car_min_distance(placed_cars)
+                #d = c.car_min_distance(placed_cars)
+                #while d < 0.1:
+                #    x_m = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
+                #    d = c.car_min_distance(placed_cars)
 
 
                 # add some noise
