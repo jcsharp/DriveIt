@@ -47,7 +47,7 @@ class Car():
         return self.state
 
 
-    def _dsdt(self, s, t, a, K_dot):
+    def _dsdt(s, t, a, K_dot):
         '''
         Computes derivatives of state parameters.
         '''
@@ -58,9 +58,9 @@ class Car():
         return x_dot, y_dot, theta_dot, a, K_dot, v
 
 
-    def _move(self, x, y, theta, v, K, d, a, K_dot, dt):
+    def _move(x, y, theta, v, K, d, a, K_dot, dt):
         s = x, y, theta, v, K, d
-        I = rk4(self._dsdt, s, [0.0, dt], a, K_dot)
+        I = rk4(Car._dsdt, s, [0.0, dt], a, K_dot)
         x, y, theta, v, K, d = I[1]
         theta = canonical_angle(theta)
         return x, y, theta, v, K, d
@@ -85,14 +85,14 @@ class Car():
         steer = max(-1.0, min(1.0, steer_ + ds))
 
         dp = throttle_actions[action] * self.specs.throttle_step
-        throttle = self._safe_throttle_move(steer_ + ds, throttle_, dp)
+        throttle = Car._safe_throttle_move(steer_ + ds, throttle_, dp)
         v = self.specs.v_max * throttle
 
         a = self.specs.v_max * (throttle - throttle_) / dt
         K_dot = self.specs.K_max * (steer - steer_) / dt
 
         # get new state
-        x, y, theta, _, _, d = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
+        x, y, theta, _, _, d = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
         self.state = (x, y, theta, steer, throttle, d, v)
 
@@ -163,17 +163,17 @@ class Car():
             return w / sin(alpha)
 
 
-    def _safe_throttle_move(self, steer, throttle, desired_change):
+    def _safe_throttle_move(steer, throttle, desired_change):
         '''
         Moves the throttle by the desired amout or according to the safe speed limit.
         '''
-        safe = self._safe_throttle(steer)
+        safe = Car._safe_throttle(steer)
         if throttle + desired_change > safe:
             return safe
         else:
             return max(0.0, min(1.0, throttle + desired_change))
 
-    def _safe_throttle(self, steer):
+    def _safe_throttle(steer):
         '''
         Gets the safe throttle value based on the specified steering.
         '''
