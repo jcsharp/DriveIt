@@ -39,8 +39,9 @@ class Car():
     def reset(self, x=0.0, y=0.0, theta=0.0, steer=0.0, throttle=0.0, odometer=0.0, v=None):
         if v is None:
             v = self.specs.v_max * throttle
+        K = self.specs.K_max * steer
 
-        self.state = (x, y, theta, steer, throttle, odometer, v)
+        self.state = (x, y, theta, steer, throttle, odometer, v, K)
         if self.breadcrumb != None:
             self.breadcrumb.v.clear()
 
@@ -76,25 +77,24 @@ class Car():
         '''
 
         # initial state
-        x_, y_, theta_, steer_, throttle_, d_, v_ = self.state
-        v_ = self.specs.v_max * throttle_
-        K_ = self.specs.K_max * steer_
+        x_, y_, theta_, steer_, throttle_, d_, v_, K_ = self.state
 
         # action
         ds = steer_actions[action] * self.specs.steer_step
         steer = max(-1.0, min(1.0, steer_ + ds))
+        K = self.specs.K_max * steer
 
         dp = throttle_actions[action] * self.specs.throttle_step
-        throttle = Car._safe_throttle_move(steer_ + ds, throttle_, dp)
+        throttle = Car._safe_throttle_move(steer, throttle_, dp)
         v = self.specs.v_max * throttle
 
-        a = self.specs.v_max * (throttle - throttle_) / dt
-        K_dot = self.specs.K_max * (steer - steer_) / dt
+        a = (v - v_) / dt
+        K_dot = (K - K_) / dt
 
         # get new state
         x, y, theta, _, _, d = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
-        self.state = (x, y, theta, steer, throttle, d, v)
+        self.state = (x, y, theta, steer, throttle, d, v, K)
 
         return self.state
 
@@ -140,7 +140,7 @@ class Car():
         '''
         Calculates the distance and relative angle to the specified location.
         '''
-        x1, y1, th1, _, _, _, _ = self.state
+        x1, y1, th1, _, _, _, _, _ = self.state
         dx = x - x1
         dy = y - y1
         dc = math.sqrt(dx ** 2 + dy ** 2)
@@ -226,7 +226,7 @@ class Car():
         '''
         Renders the car.
         '''
-        x, y, theta, steer, _, _, _ = self.state
+        x, y, theta, steer, _, _, _, _ = self.state
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
         self.steertrans.set_rotation(steer * pi / 2.0)

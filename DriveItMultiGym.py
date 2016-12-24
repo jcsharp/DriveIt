@@ -117,8 +117,8 @@ class DriveItEnv(gym.Env):
         placed_cars = []
 
         for i in range(len(self.cars)):
-            x, y, theta, steer, throttle, odometer, v = self._reset_car(i, random_position)
-            self.observations.append(np.array((odometer, 0.0, theta, steer, v)))
+            x, y, theta, steer, throttle, odometer, v, K = self._reset_car(i, random_position)
+            self.observations.append(np.array((odometer, 0.0, theta, v, K)))
             self.state.append((odometer, 0.0))
         
         return self.observations
@@ -138,7 +138,7 @@ class DriveItEnv(gym.Env):
             x_m_, bias = self.state[i]
 
             # move the car
-            x, y, theta, steer, throttle, d, v = car.step(a, dt)
+            x, y, theta, steer, throttle, d, v, K = car.step(a, dt)
 
             # read sensors
             blue = self._blueness(x, y)
@@ -147,7 +147,7 @@ class DriveItEnv(gym.Env):
                 # add observation noise
                 bias = max(-0.017, min(0.017, self.np_random.normal(bias, 0.001)))
                 theta_hat = canonical_angle(theta + bias)
-                v_noise = 0.0 if v == 0 else self.np_random.normal(0, v * 0.003)
+                v_noise = 0.0 if v == 0 else self.np_random.normal(0, v * 0.001)
                 v_hat = v + v_noise
                 d += v_noise * dt
             else:
@@ -155,16 +155,16 @@ class DriveItEnv(gym.Env):
                 v_hat = v
 
             # check progress along the track
-            x_m, lap, checkpoint = DriveItEnv.median_distance(x, y, d)
+            x_m, lap, checkpoint = DriveItEnv.median_distance(x, y, x_m_)
             y_m = DriveItEnv.lateral_error(x, y, x_m)
             dx_m = x_m - x_m_
             if lap:
                 d = 0
-                car.state = (x, y, theta, steer, throttle, d, v)
+                car.state = (x, y, theta, steer, throttle, d, v, K)
             if checkpoint:
                 dx_m += lap_median_length
                 d = -checkpoint_median_length
-                car.state = (x, y, theta, steer, throttle, d, v)
+                car.state = (x, y, theta, steer, throttle, d, v, K)
 
             # are we done yet?
             out = blue >= blue_threshold
@@ -175,7 +175,7 @@ class DriveItEnv(gym.Env):
             if out or wrong_way:
                 reward = self.out_reward
 
-            observations.append((d, blue, theta_hat, steer, v_hat))
+            observations.append((d, blue, theta_hat, v_hat, K))
             rewards.append(reward)
             state.append((x_m, bias))
 
@@ -185,69 +185,9 @@ class DriveItEnv(gym.Env):
         # TODO: collision check
         done = timeout #or out or wrong_way
 
-        #if self.show_belief_state:
-        #    self.belief = self.update_belief(observation)
-        #    retval = self._normalize_belief(self.belief)
-        #else:
-        #    retval = self._normalize_observation(observation)
-
-        #self.observation = observation
-
         return observations, rewards, done, { \
             'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
         }
-
-
-    #def update_belief(self, observation):
-
-    #    x_, y_, checkpoint = self.belief_position
-    #    d_, b_, theta_, steer_, v_ = self.observations
-    #    d, blueness, theta, steer, v = observation
-    #    K_ = K_max * steer_
-
-    #    # update position
-    #    a = ((v - v_) / dt + (d - d_) * dt) / 2.0 # average on speed and dist to reduce noise
-    #    K_dot = K_max * (steer - steer_) / dt
-    #    x, y, _, _, _, _ = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
-
-    #    x_m, _, _ = DriveItEnv.median_distance(x, y, d_)
-    #    if d == -checkpoint_median_length: # checkpoint
-    #        checkpoint = True
-    #        x_m = -checkpoint_median_length
-    #        y = -median_radius
-
-    #    elif d == 0.0: # lap
-    #        checkpoint = False
-    #        x_m = 0
-    #        x = -median_radius
-        
-    #    if checkpoint and x_m > 0.0:
-    #        x_m = 0.0
-    #        x = -median_radius
-        
-    #    if x_m > checkpoint_median_length:
-    #        x_m = checkpoint_median_length
-    #        y = -median_radius
-
-    #    # lateral position
-    #    y_m = DriveItEnv.lateral_error(x, y, x_m)
-    #    #if blueness >= 0.1:
-    #    #    # the blue gradient is almost linear...
-    #    #    y_b = np.copysign(half_track_width + 0.00 + (blue_width + 0.00) * (blueness - 1), y_m)
-    #    #    dy = y_b - y_m
-    #    #    y_m += dy / 3.0
-
-    #    self.belief_position = (x, y, checkpoint)
-
-    #    return x_m, y_m, theta, steer, v, blueness
-
-    
-    #def _normalize_observation(self, observation):
-    #    o_n = ()
-    #    for o in observation:
-    #        x, b, th, st, v = o
-    #        o_n.append(np.array((x / checkpoint_median_length, b, th / pi, st, v / v_max)))
-    #    return o_n
 
 
     def median_distance(x:float, y:float, current_mdist:float):
@@ -264,7 +204,7 @@ class DriveItEnv(gym.Env):
         if abs(x) <= median_radius and abs(y) <= median_radius:
 
             # lap straight line
-            if current_mdist > - loop_median_length and current_mdist <= line_length:
+            if current_mdist > - loop_median_length and current_mdist <= loop_median_length:
                 lap = current_mdist < 0
                 return x + median_radius, lap, False
 
@@ -459,7 +399,4 @@ class DriveItEnv(gym.Env):
         channels of the (simulated) RGB color sensor.
         '''
         b, g, r, a = self._track_color(x, y, n=1)
-        if a == 0:
-            return 1.0
-        else:
-            return (b - r) / 217
+        return (b - r) / 217
