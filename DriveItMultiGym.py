@@ -74,9 +74,9 @@ class DriveItEnv(gym.Env):
 
         if random_position:
             # random position along the track median
-            x_m = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
-            y_m = np.random.uniform(-0.03, 0.03)
-            x, y = self._median_to_cartesian(x_m, y_m)
+            x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
+            y_m = self.np_random.uniform(-0.03, 0.03)
+            x, y = DriveItEnv.median_to_cartesian(x_m, y_m)
         
             # keep 10 cm distance between cars
             for j in range(i):
@@ -84,13 +84,13 @@ class DriveItEnv(gym.Env):
                 if d < 0.1 + car.specs.car_lenght / 2.0:
                     return self._reset_car(i, random_position)
         
-            theta, K = self._median_properties(x_m)
+            theta, K = DriveItEnv.median_properties(x_m)
             steer = K / car.specs.K_max
         
             # add some noise
-            theta += np.random.uniform(-pi / 36.0, pi / 36.0)
-            steer += np.random.randint(-1, 1) * car.specs.steer_step
-            throttle = 0.0 #int(self._safe_throttle(steer) * np.random.uniform() / throttle_step) * throttle_step
+            theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
+            steer += self.np_random.randint(-1, 1) * car.specs.steer_step
+            throttle = 0.0 #int(self._safe_throttle(steer) * self.np_random.uniform() / throttle_step) * throttle_step
         
         else:
             # the default startup position, on the lap threshold
@@ -145,9 +145,9 @@ class DriveItEnv(gym.Env):
 
             if self.noisy:
                 # add observation noise
-                bias = max(-0.017, min(0.017, np.random.normal(bias, 0.001)))
+                bias = max(-0.017, min(0.017, self.np_random.normal(bias, 0.001)))
                 theta_hat = canonical_angle(theta + bias)
-                v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.003)
+                v_noise = 0.0 if v == 0 else self.np_random.normal(0, v * 0.003)
                 v_hat = v + v_noise
                 d += v_noise * dt
             else:
@@ -155,8 +155,8 @@ class DriveItEnv(gym.Env):
                 v_hat = v
 
             # check progress along the track
-            x_m, lap, checkpoint = self._median_distance(x, y, d)
-            y_m = self._lateral_error(x, y, x_m)
+            x_m, lap, checkpoint = DriveItEnv.median_distance(x, y, d)
+            y_m = DriveItEnv.lateral_error(x, y, x_m)
             dx_m = x_m - x_m_
             if lap:
                 d = 0
@@ -168,7 +168,7 @@ class DriveItEnv(gym.Env):
 
             # are we done yet?
             out = blue >= blue_threshold
-            wrong_way = self._is_wrong_way(x, y, theta, x_m < 0.0)
+            wrong_way = DriveItEnv._is_wrong_way(x, y, theta, x_m < 0.0)
 
             # reward progress
             reward = dx_m
@@ -210,7 +210,7 @@ class DriveItEnv(gym.Env):
     #    K_dot = K_max * (steer - steer_) / dt
     #    x, y, _, _, _, _ = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
 
-    #    x_m, _, _ = self._median_distance(x, y, d_)
+    #    x_m, _, _ = DriveItEnv.median_distance(x, y, d_)
     #    if d == -checkpoint_median_length: # checkpoint
     #        checkpoint = True
     #        x_m = -checkpoint_median_length
@@ -230,7 +230,7 @@ class DriveItEnv(gym.Env):
     #        y = -median_radius
 
     #    # lateral position
-    #    y_m = self._lateral_error(x, y, x_m)
+    #    y_m = DriveItEnv.lateral_error(x, y, x_m)
     #    #if blueness >= 0.1:
     #    #    # the blue gradient is almost linear...
     #    #    y_b = np.copysign(half_track_width + 0.00 + (blue_width + 0.00) * (blueness - 1), y_m)
@@ -250,7 +250,7 @@ class DriveItEnv(gym.Env):
     #    return o_n
 
 
-    def _median_distance(self, x, y, current_mdist):
+    def median_distance(x, y, current_mdist):
         '''
         Calculates the normalized longitudinal position along the track.
         
@@ -288,7 +288,7 @@ class DriveItEnv(gym.Env):
             return -loop_median_length + alpha * median_radius, False, False
 
 
-    def _median_to_cartesian(self, x_m, y_m):
+    def median_to_cartesian(x_m, y_m):
         '''
         Calculates the cartesian coordinates of a specific position relative to the track median.
         '''
@@ -317,7 +317,7 @@ class DriveItEnv(gym.Env):
                 return x, y
 
 
-    def _median_properties(self, x_m):
+    def median_properties(x_m):
         '''
         Calculates the tangent and curvature of a specific positio on the track median.
         '''
@@ -342,7 +342,7 @@ class DriveItEnv(gym.Env):
                 return canonical_angle(-alpha), 1.0 / median_radius
 
 
-    def _lateral_error(self, x, y, x_m):
+    def lateral_error(x, y, x_m):
         '''
         Calculates the lateral distance between the car center and the track median.
         '''
@@ -374,7 +374,7 @@ class DriveItEnv(gym.Env):
         return y_m
 
 
-    def _is_wrong_way(self, x, y, theta, checkpoint):
+    def _is_wrong_way(x, y, theta, checkpoint):
         '''
         Checks if the car is making an illegal turn at the crossing.
         '''
