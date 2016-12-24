@@ -250,7 +250,7 @@ class DriveItEnv(gym.Env):
     #    return o_n
 
 
-    def median_distance(x, y, current_mdist):
+    def median_distance(x:float, y:float, current_mdist:float):
         '''
         Calculates the normalized longitudinal position along the track.
         
@@ -288,7 +288,7 @@ class DriveItEnv(gym.Env):
             return -loop_median_length + alpha * median_radius, False, False
 
 
-    def median_to_cartesian(x_m, y_m):
+    def median_to_cartesian(x_m:float, y_m:float):
         '''
         Calculates the cartesian coordinates of a specific position relative to the track median.
         '''
@@ -317,7 +317,7 @@ class DriveItEnv(gym.Env):
                 return x, y
 
 
-    def median_properties(x_m):
+    def median_properties(x_m:float):
         '''
         Calculates the tangent and curvature of a specific positio on the track median.
         '''
@@ -342,7 +342,7 @@ class DriveItEnv(gym.Env):
                 return canonical_angle(-alpha), 1.0 / median_radius
 
 
-    def lateral_error(x, y, x_m):
+    def lateral_error(x:float, y:float, x_m:float):
         '''
         Calculates the lateral distance between the car center and the track median.
         '''
@@ -374,7 +374,7 @@ class DriveItEnv(gym.Env):
         return y_m
 
 
-    def _is_wrong_way(x, y, theta, checkpoint):
+    def _is_wrong_way(x:float, y:float, theta:float, checkpoint:bool):
         '''
         Checks if the car is making an illegal turn at the crossing.
         '''
