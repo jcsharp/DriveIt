@@ -68,6 +68,39 @@ class DriveItEnv(gym.Env):
         return [seed]
 
 
+    def _reset_car(self, i, random_position):
+
+        car = self.cars[i]
+
+        if random_position:
+            # random position along the track median
+            x_m = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
+            y_m = np.random.uniform(-0.03, 0.03)
+            x, y = self._median_to_cartesian(x_m, y_m)
+        
+            # keep 10 cm distance between cars
+            for j in range(i):
+                d, _ = self.cars[j].distance(x, y)
+                if d < 0.1 + car.specs.car_lenght / 2.0:
+                    return self._reset_car(i, random_position)
+        
+            theta, K = self._median_properties(x_m)
+            steer = K / car.specs.K_max
+        
+            # add some noise
+            theta += np.random.uniform(-pi / 36.0, pi / 36.0)
+            steer += np.random.randint(-1, 1) * car.specs.steer_step
+            throttle = 0.0 #int(self._safe_throttle(steer) * np.random.uniform() / throttle_step) * throttle_step
+        
+        else:
+            # the default startup position, on the lap threshold
+            x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
+            x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
+            throttle = 0.0
+
+        return car.reset(x, y, theta, steer, throttle, x_m)
+
+
     def _reset(self, random_position=True):
         '''
         Resets the simulation.
@@ -83,37 +116,10 @@ class DriveItEnv(gym.Env):
         self.state = []
         placed_cars = []
 
-        for c in self.cars:
-            if random_position:
-                # random position along the track median
-                x_m = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
-                y_m = np.random.uniform(-0.03, 0.03)
-                x, y = self._median_to_cartesian(x_m, y_m)
-                theta, K = self._median_properties(x_m)
-                steer = K / c.specs.K_max
-
-                #d = c.car_min_distance(placed_cars)
-                #while d < 0.1:
-                #    x_m = np.random.uniform(-checkpoint_median_length, checkpoint_median_length)
-                #    d = c.car_min_distance(placed_cars)
-
-
-                # add some noise
-                theta += np.random.uniform(-pi / 36.0, pi / 36.0)
-                steer += np.random.randint(-1, 1) * c.specs.steer_step
-                throttle = 0.0 #int(self._safe_throttle(steer) * np.random.uniform() / throttle_step) * throttle_step
-
-            else:
-                # the default startup position, on the lap threshold
-                x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
-                x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
-                throttle = 0.0
-
-            c.reset(x, y, theta, steer, throttle, x_m)
-            v = throttle * c.specs.v_max
-
-            self.observations.append(np.array((x_m, 0.0, theta, steer, v)))
-            self.state.append((x_m, 0.0))
+        for i in range(len(self.cars)):
+            x, y, theta, steer, throttle, odometer, v = self._reset_car(i, random_position)
+            self.observations.append(np.array((odometer, 0.0, theta, steer, v)))
+            self.state.append((odometer, 0.0))
         
         return self.observations
 

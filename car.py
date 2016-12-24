@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+Car class for the DriveIt Gym environment.
 @author: Jean-Claude Manoli
 """
 
@@ -13,13 +14,15 @@ steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
 
 class CarSpecifications():
-    carwidth = 0.12
-    carlenght = 0.24
+    car_width = 0.12
+    car_lenght = 0.24
+    diag_angle = math.atan2(car_width, car_lenght)
     steer_step = 0.1
     throttle_step = 0.1
     K_max = 4.5
-    v_max = 2.5
-    diag_angle = math.atan2(carwidth, carlenght)
+
+    def __init__(self, v_max=2.5):
+        self.v_max = v_max
 
 
 class Car():
@@ -33,10 +36,15 @@ class Car():
         self.reset(*args, **kwargs)
 
 
-    def reset(self, x=0.0, y=0.0, theta=0.0, steer=0.0, throttle=0.0, odometer=0.0, v=0.0):
+    def reset(self, x=0.0, y=0.0, theta=0.0, steer=0.0, throttle=0.0, odometer=0.0, v=None):
+        if v is None:
+            v = self.specs.v_max * throttle
+
         self.state = (x, y, theta, steer, throttle, odometer, v)
         if self.breadcrumb != None:
             self.breadcrumb.v.clear()
+
+        return self.state
 
 
     def _dsdt(self, s, t, a, K_dot):
@@ -91,13 +99,22 @@ class Car():
         return self.state
 
 
-    def car_min_distance(self, cars):
-        dists = self.car_distances(cars)
-        i = np.argmin([d for d, _, _ in dists])
-        return dists[i]
+    def closest_car(self, cars):
+        '''
+        Returns the distance and angle to the closest car.
+        '''
+        if len(cars) > 0:
+            dists = self.car_distances(cars)
+            i = np.argmin([d for d, _, _ in dists])
+            return dists[i]
+        else:
+            return None
         
 
     def car_distances(self, cars):
+        '''
+        Returns the distances and angles to the specified list of cars.
+        '''
         distances = []
         for c in cars:
             if c == self:
@@ -107,16 +124,22 @@ class Car():
         return distances
         
 
-    def car_distance(self, car2):
+    def car_distance(self, car):
+        '''
+        Calculates the distance and relative angle to the specified car.
+        '''
         x1, y1, th1, _, _, _, _ = self.state
-        x2, y2, th2, _, _, _, _ = car2
+        x2, y2, th2, _, _, _, _ = car.state
         d, alpha = self.distance(x2, y2)
         alpha2 = th2 - th1 + alpha 
-        bd2 = _bumper_distance(car2, alpha2)
-        return d - bd2, alpha1
+        bd2 = car._bumper_distance(alpha2)
+        return d - bd2, alpha
         
 
     def distance(self, x, y):
+        '''
+        Calculates the distance and relative angle to the specified location.
+        '''
         x1, y1, th1, _, _, _, _ = self.state
         dx = x - x1
         dy = y - y1
@@ -128,8 +151,11 @@ class Car():
         
 
     def _bumper_distance(self, alpha):
-        l = self.specs.carlenght / 2.0
-        w = self.specs.carwidth / 2.0
+        '''
+        Calculates the car's center to bumper distance for the specified angle.
+        '''
+        l = self.specs.car_lenght / 2.0
+        w = self.specs.car_width / 2.0
         alpha = abs(wrap(alpha, -pi / 2.0, pi / 2.0))
         if alpha <= self.specs.diag_angle:
             return l / cos(alpha)
@@ -155,14 +181,17 @@ class Car():
 
 
     def init_rendering(self, viewer):
+        '''
+        Initializes the rendering of the car geometry.
+        '''
         self.breadcrumb = rendering.PolyLine([], close=False)
         self.breadcrumb.set_color(*self.color)
         viewer.add_geom(self.breadcrumb)
 
-        l = -self.specs.carlenght / 2.0
-        r = self.specs.carlenght / 2.0
-        t = self.specs.carwidth / 2.0
-        b = -self.specs.carwidth / 2.0
+        l = -self.specs.car_lenght / 2.0
+        r = self.specs.car_lenght / 2.0
+        t = self.specs.car_width / 2.0
+        b = -self.specs.car_width / 2.0
 
         self.cartrans = rendering.Transform()
 
@@ -194,6 +223,9 @@ class Car():
 
 
     def render(self):
+        '''
+        Renders the car.
+        '''
         x, y, theta, steer, _, _, _ = self.state
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
