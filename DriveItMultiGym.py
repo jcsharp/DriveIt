@@ -76,7 +76,7 @@ class DriveItEnv(gym.Env):
         if random_position:
             # random position along the track median
             x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
-            y_m = self.np_random.uniform(-0.03, 0.03)
+            y_m = self.np_random.uniform(-0.01, 0.01) if self.noisy else 0.0
             x, y = DriveItEnv.median_to_cartesian(x_m, y_m)
         
             # keep 10 cm distance between cars
@@ -149,7 +149,7 @@ class DriveItEnv(gym.Env):
 
             if self.noisy:
                 # add observation noise
-                bias = max(-0.017, min(0.017, self.np_random.normal(bias, 0.001)))
+                bias = max(-0.01, min(0.01, self.np_random.normal(bias, 0.0001)))
                 theta_hat = canonical_angle(theta + bias)
                 v_noise = 0.0 if v == 0 else self.np_random.normal(0, v * 0.003)
                 v_hat = v + v_noise
