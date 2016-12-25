@@ -2,6 +2,7 @@ import math
 import numpy as np
 from numpy import cos, sin, pi
 from gym.envs.classic_control import rendering
+from utils import *
 
 
 class Part():
@@ -26,14 +27,16 @@ class Part():
 
 
     def set_transform(self):
-        self._transform = Part.get_transform(*self._position)
+        x, y, theta = self.get_position() 
+        self._transform = Part.get_transform(x, y, theta)
 
 
     def get_position(self):
         if self.parent is None:
             return self._position[:-1]
         else:
-            return (self.parent.transform * self._position)[:-1]
+            pos = np.reshape(self._position, (4,1))
+            return (self.parent._transform * pos)[:-1]
 
         
     def part_distances(self, parts):

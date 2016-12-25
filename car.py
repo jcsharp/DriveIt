@@ -37,7 +37,13 @@ class Car(Part):
         self.specs = specs
         self.color = color
         self.trail_length = trail_length
+        self.dist_sensors = []
         self.reset(*args, **kwargs)
+
+
+    def add_dist_sensor(self, sensor, x, y, theta):
+        self.dist_sensors.append(sensor)
+        self.add_part(sensor, x, y, theta)
 
 
     def reset(self, x=0.0, y=0.0, theta=0.0, steer=0.0, throttle=0.0, odometer=0.0, v=None):
