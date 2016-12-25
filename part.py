@@ -68,7 +68,7 @@ class Part():
         dx = x - x1
         dy = y - y1
         dc = math.sqrt(dx ** 2 + dy ** 2)
-        alpha = math.atan2(dy, dx) - th1
+        alpha = canonical_angle(math.atan2(dy, dx) - th1)
         r = self.radius(alpha)
         d = dc - r
         return d, alpha
