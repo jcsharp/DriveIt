@@ -26,15 +26,17 @@ class PositionTracking():
         x, y, _, _, _, _ = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
         x_m, _, _ = DriveItEnv.median_distance(x, y, d_)
+
         if d == -checkpoint_median_length: # checkpoint
             checkpoint = True
-            x_m = -checkpoint_median_length
-            y = -median_radius
-
+            if x_m > 0.0:
+                x_m = -checkpoint_median_length
+                y = -median_radius
         elif d == 0.0: # lap
             checkpoint = False
-            x_m = 0
-            x = -median_radius
+            if x_m < 0.0:
+                x_m = 0
+                x = -median_radius
         
         if checkpoint and x_m > 0.0:
             x_m = 0.0
