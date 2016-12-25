@@ -8,10 +8,13 @@ import math
 import numpy as np
 from numpy import cos, sin, pi
 from utils import *
+from part import *
 from gym.envs.classic_control import rendering
+
 
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
+
 
 class CarSpecifications():
     car_width = 0.12
@@ -25,11 +28,12 @@ class CarSpecifications():
         self.v_max = v_max
 
 
-class Car():
+class Car(Part):
     
     breadcrumb = None
 
     def __init__(self, color=Color.black, specs=CarSpecifications(), trail_length=180, *args, **kwargs):
+        Part.__init__(self)
         self.specs = specs
         self.color = color
         self.trail_length = trail_length
@@ -41,11 +45,12 @@ class Car():
             v = self.specs.v_max * throttle
         K = self.specs.K_max * steer
 
-        self.state = (x, y, theta, steer, throttle, odometer, v, K)
+        self.set_position(x, y, theta)
+        self.state = (steer, throttle, odometer, v, K)
         if self.breadcrumb != None:
             self.breadcrumb.v.clear()
 
-        return self.state
+        return x, y, theta, steer, throttle, odometer, v, K
 
 
     def _dsdt(s, t, a, K_dot):
@@ -68,7 +73,8 @@ class Car():
 
 
     def reset_odometer(self, value):
-        x=2
+        steer, throttle, d, v, K = self.state
+        self.state = (steer, throttle, value, v, K)
 
 
     def step(self, action, dt):
@@ -77,7 +83,8 @@ class Car():
         '''
 
         # initial state
-        x_, y_, theta_, steer_, throttle_, d_, v_, K_ = self.state
+        x_, y_, theta_ = self.get_position()
+        steer_, throttle_, d_, v_, K_ = self.state
 
         # action
         ds = steer_actions[action] * self.specs.steer_step
@@ -94,9 +101,10 @@ class Car():
         # get new state
         x, y, theta, _, _, d = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
-        self.state = (x, y, theta, steer, throttle, d, v, K)
+        self.set_position(x, y, theta)
+        self.state = (steer, throttle, d, v, K)
 
-        return self.state
+        return x, y, theta, steer, throttle, d, v, K
 
 
     def closest_car(self, cars):
@@ -128,8 +136,8 @@ class Car():
         '''
         Calculates the distance and relative angle to the specified car.
         '''
-        x1, y1, th1, _, _, _, _ = self.state
-        x2, y2, th2, _, _, _, _ = car.state
+        x1, y1, th1 = self.get_position()
+        x2, y2, th2 = car.get_position()
         d, alpha = self.distance(x2, y2)
         alpha2 = th2 - th1 + alpha 
         bd2 = car._bumper_distance(alpha2)
@@ -140,7 +148,7 @@ class Car():
         '''
         Calculates the distance and relative angle to the specified location.
         '''
-        x1, y1, th1, _, _, _, _, _ = self.state
+        x1, y1, th1 = self.get_position()
         dx = x - x1
         dy = y - y1
         dc = math.sqrt(dx ** 2 + dy ** 2)
@@ -180,58 +188,52 @@ class Car():
         return min(1.0, 1.0 - abs(steer) / 2.0)
 
 
-    def init_rendering_trails(self, viewer):
-        '''
-        Initializes the rendering of the car geometry.
-        '''
+    def init_rendering(self, viewer):
+
+        self.steering_wheel = SteeringWheel()
+        self.add_part(self.steering_wheel, 0.065, 0.0, 0.0)
         self.breadcrumb = rendering.PolyLine([], close=False)
         self.breadcrumb.set_color(*self.color)
         viewer.add_geom(self.breadcrumb)
 
 
-    def init_rendering(self, viewer):
+    def get_geometry(self):
+
         l = -self.specs.car_lenght / 2.0
         r = self.specs.car_lenght / 2.0
         t = self.specs.car_width / 2.0
         b = -self.specs.car_width / 2.0
 
-        self.cartrans = rendering.Transform()
-
-        car = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-        car.set_color(255, 64, 128)
-        car.add_attr(self.cartrans)
-        viewer.add_geom(car)
+        body = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
+        body.set_color(255, 64, 128)
 
         d = 0.015
         sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
         sensor.set_color(255, 0, 0)
-        sensor.add_attr(self.cartrans)
-        viewer.add_geom(sensor)
 
-        steer = rendering.PolyLine([(-0.035, 0.0), (0.035, 0.0)], close=False)
-        steer.set_linewidth(3)
-        steer.set_color(0, 0, 255)
-        self.steertrans = rendering.Transform()
-        self.steertrans.set_translation(0.065, 0.0)
-        steer.add_attr(self.steertrans)
-        steer.add_attr(self.cartrans)
-        viewer.add_geom(steer)
+        bumpers = rendering.PolyLine([(l, b), (l, t), (r, t), (r, b)], close=True)
+        bumpers.set_linewidth(3)
+        bumpers.set_color(*self.color)
 
-        carout = rendering.PolyLine([(l, b), (l, t), (r, t), (r, b)], close=True)
-        carout.set_linewidth(3)
-        carout.set_color(*self.color)
-        carout.add_attr(self.cartrans)
-        viewer.add_geom(carout)
+        return [body, sensor, bumpers]
 
 
-    def render(self):
-        '''
-        Renders the car.
-        '''
-        x, y, theta, steer, _, _, _, _ = self.state
-        self.cartrans.set_translation(x, y)
-        self.cartrans.set_rotation(theta)
-        self.steertrans.set_rotation(steer * pi / 2.0)
+    def render(self, viewer):
+        
+        self.steering_wheel.set_rotation(self.state[0] * pi / 2.0)
+        x, y, theta = self.get_position()
         self.breadcrumb.v.append((x, y))
         if len(self.breadcrumb.v) > self.trail_length:
             self.breadcrumb.v.pop(0)
+
+        Part.render(self, viewer)
+
+
+
+class SteeringWheel(Part):
+    def get_geometry(self):
+        steer = rendering.PolyLine([(-0.035, 0.0), (0.035, 0.0)], close=False)
+        steer.set_linewidth(3)
+        steer.set_color(0, 0, 255)
+        return [steer]
+

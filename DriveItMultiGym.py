@@ -100,7 +100,7 @@ class DriveItEnv(gym.Env):
             throttle = 0.0
 
         return car.reset(x, y, theta, steer, throttle, x_m)
-
+        
 
     def _reset(self, random_position=True):
         '''
@@ -164,11 +164,11 @@ class DriveItEnv(gym.Env):
             dx_m = x_m - x_m_
             if lap:
                 d = 0
-                car.state = (x, y, theta, steer, throttle, d, v, K)
+                car.reset_odometer(d)
             if checkpoint:
                 dx_m += lap_median_length
                 d = -checkpoint_median_length
-                car.state = (x, y, theta, steer, throttle, d, v, K)
+                car.reset_odometer(d)
 
             # are we done yet?
             out = blue >= blue_threshold
@@ -355,13 +355,10 @@ class DriveItEnv(gym.Env):
             self.viewer.add_geom(self.track)
 
             for c in self.cars:
-                c.init_rendering_trails(self.viewer)
-
-            for c in self.cars:
                 c.init_rendering(self.viewer)
 
         for c in self.cars:
-            c.render()
+            c.render(self.viewer)
 
         return self.viewer.render(return_rgb_array=(mode == 'rgb_array'))
 
