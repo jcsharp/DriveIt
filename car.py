@@ -180,7 +180,7 @@ class Car():
         return min(1.0, 1.0 - abs(steer) / 2.0)
 
 
-    def init_rendering(self, viewer):
+    def init_rendering_trails(self, viewer):
         '''
         Initializes the rendering of the car geometry.
         '''
@@ -188,6 +188,8 @@ class Car():
         self.breadcrumb.set_color(*self.color)
         viewer.add_geom(self.breadcrumb)
 
+
+    def init_rendering(self, viewer):
         l = -self.specs.car_lenght / 2.0
         r = self.specs.car_lenght / 2.0
         t = self.specs.car_width / 2.0

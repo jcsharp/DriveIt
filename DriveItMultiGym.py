@@ -42,6 +42,7 @@ class DriveItEnv(gym.Env):
         self.cars = cars
         self.time_limit = time_limit
         self.noisy = noisy
+        self.car_num = len(cars)
 
         # corresponds to the maximum discounted reward over a median lap
         max_reward = cars[0].specs.v_max * dt / (1 - gamma)
@@ -126,13 +127,16 @@ class DriveItEnv(gym.Env):
 
     def _step(self, actions):
 
+        if len(actions) != self.car_num:
+            raise ValueError('Wrong number of actions.')
+
         self.time += dt
         observations = []
         rewards = []
         rewards = []
         state = []
 
-        for i in range(len(actions)):
+        for i in range(self.car_num):
             a = actions[i]
             car = self.cars[i]
             x_m_, bias = self.state[i]
@@ -147,7 +151,7 @@ class DriveItEnv(gym.Env):
                 # add observation noise
                 bias = max(-0.017, min(0.017, self.np_random.normal(bias, 0.001)))
                 theta_hat = canonical_angle(theta + bias)
-                v_noise = 0.0 if v == 0 else self.np_random.normal(0, v * 0.001)
+                v_noise = 0.0 if v == 0 else self.np_random.normal(0, v * 0.003)
                 v_hat = v + v_noise
                 d += v_noise * dt
             else:
@@ -349,6 +353,9 @@ class DriveItEnv(gym.Env):
 
             self.track.set_color(128, 128, 128)
             self.viewer.add_geom(self.track)
+
+            for c in self.cars:
+                c.init_rendering_trails(self.viewer)
 
             for c in self.cars:
                 c.init_rendering(self.viewer)
