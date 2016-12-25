@@ -88,17 +88,18 @@ class DriveItEnv(gym.Env):
             theta, K = DriveItEnv.median_properties(x_m)
             steer = K / car.specs.K_max
         
-            # add some noise
-            theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
-            steer += self.np_random.randint(-1, 1) * car.specs.steer_step
-            throttle = 0.0 #int(self._safe_throttle(steer) * self.np_random.uniform() / throttle_step) * throttle_step
-        
+            if self.noisy:
+                theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
+                steer += self.np_random.randint(-1, 1) * car.specs.steer_step
+                    
         else:
-            # the default startup position, on the lap threshold
-            x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
-            x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
-            throttle = 0.0
+            space = lap_median_length / len(self.cars)
+            x_m = wrap(i * space, -checkpoint_median_length, checkpoint_median_length)
+            x, y = DriveItEnv.median_to_cartesian(x_m, 0.0)
+            theta, K = DriveItEnv.median_properties(x_m)
+            steer = K / car.specs.K_max
 
+        throttle = 0.0 
         return car.reset(x, y, theta, steer, throttle, x_m)
         
 
