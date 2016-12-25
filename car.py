@@ -107,60 +107,9 @@ class Car(Part):
         return x, y, theta, steer, throttle, d, v, K
 
 
-    def closest_car(self, cars):
+    def radius(self, alpha):
         '''
-        Returns the distance and angle to the closest car.
-        '''
-        if len(cars) > 0:
-            dists = self.car_distances(cars)
-            i = np.argmin([d for d, _, _ in dists])
-            return dists[i]
-        else:
-            return None
-        
-
-    def car_distances(self, cars):
-        '''
-        Returns the distances and angles to the specified list of cars.
-        '''
-        distances = []
-        for c in cars:
-            if c == self:
-                continue
-            d, alpha = self.car_distance(c)
-            distances.append((d, alpha, c))
-        return distances
-        
-
-    def car_distance(self, car):
-        '''
-        Calculates the distance and relative angle to the specified car.
-        '''
-        x1, y1, th1 = self.get_position()
-        x2, y2, th2 = car.get_position()
-        d, alpha = self.distance(x2, y2)
-        alpha2 = th2 - th1 + alpha 
-        bd2 = car._bumper_distance(alpha2)
-        return d - bd2, alpha
-        
-
-    def distance(self, x, y):
-        '''
-        Calculates the distance and relative angle to the specified location.
-        '''
-        x1, y1, th1 = self.get_position()
-        dx = x - x1
-        dy = y - y1
-        dc = math.sqrt(dx ** 2 + dy ** 2)
-        alpha = math.atan2(dy, dx) - th1
-        bd = self._bumper_distance(alpha)
-        d = dc - bd
-        return d, alpha
-        
-
-    def _bumper_distance(self, alpha):
-        '''
-        Calculates the car's center to bumper distance for the specified angle.
+        Calculates the car's radius in the specified direction.
         '''
         l = self.specs.car_lenght / 2.0
         w = self.specs.car_width / 2.0

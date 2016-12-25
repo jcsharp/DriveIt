@@ -36,6 +36,51 @@ class Part():
             return (self.parent.transform * self._position)[:-1]
 
         
+    def part_distances(self, parts):
+        '''
+        Returns the distances and angles to the specified list of parts.
+        '''
+        distances = []
+        for part in parts:
+            if part != self:
+                d, alpha = self.part_distance(part)
+                distances.append((d, alpha, part))
+        return distances
+        
+
+    def part_distance(self, part):
+        '''
+        Calculates the distance and relative angle to the specified part.
+        '''
+        x1, y1, th1 = self.get_position()
+        x2, y2, th2 = part.get_position()
+        d, alpha = self.distance(x2, y2)
+        alpha2 = th2 - th1 + alpha 
+        r2 = part.radius(alpha2)
+        return d - r2, alpha
+        
+
+    def distance(self, x, y):
+        '''
+        Calculates the distance and relative angle to the specified location.
+        '''
+        x1, y1, th1 = self.get_position()
+        dx = x - x1
+        dy = y - y1
+        dc = math.sqrt(dx ** 2 + dy ** 2)
+        alpha = math.atan2(dy, dx) - th1
+        r = self.radius(alpha)
+        d = dc - r
+        return d, alpha
+        
+
+    def radius(self, alpha):
+        '''
+        Calculates the part's thickness in the specified direction.
+        '''
+        return 0.0
+
+
     def add_part(self, part, x, y, theta):
         if self._transform is None:
             self.set_transform()
