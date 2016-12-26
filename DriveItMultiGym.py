@@ -352,7 +352,7 @@ class DriveItEnv(gym.Env):
             self.viewer = rendering.Viewer(screen_width, screen_height)
             self.viewer.set_bounds(-1.1, 1.1, -1.1, 1.1)
 
-            self.track.set_color(128, 128, 128)
+            self.track.set_color(1, 1, 1)
             self.viewer.add_geom(self.track)
 
             for c in self.cars:

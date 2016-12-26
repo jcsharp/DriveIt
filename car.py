@@ -148,7 +148,7 @@ class Car(Part):
         self.steering_wheel = SteeringWheel()
         self.add_part(self.steering_wheel, 0.065, 0.0, 0.0)
         self.breadcrumb = rendering.PolyLine([], close=False)
-        self.breadcrumb.set_color(*self.color)
+        self.breadcrumb._color.vec4 = Color.set_alpha(self.color, 0.5);
         viewer.add_geom(self.breadcrumb)
 
 
@@ -160,15 +160,15 @@ class Car(Part):
         b = -self.specs.car_width / 2.0
 
         body = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-        body.set_color(255, 64, 128)
+        body.set_color(1, 1, 1)
 
         d = 0.015
         sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
-        sensor.set_color(255, 0, 0)
+        sensor.set_color(1, 0, 0)
 
         bumpers = rendering.PolyLine([(l, b), (l, t), (r, t), (r, b)], close=True)
         bumpers.set_linewidth(3)
-        bumpers.set_color(*self.color)
+        bumpers._color.vec4 = self.color
 
         return [body, sensor, bumpers]
 

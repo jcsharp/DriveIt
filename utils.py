@@ -96,14 +96,18 @@ def rk4(derivs, y0, t, *args, **kwargs):
 
 
 class Color:
-    black = (0, 0, 0)
-    red = (255, 0, 0)
-    green = (0, 255, 0)
-    blue = (0, 0, 255)
-    orange = (128, 128, 0)
-    darkGreen = (0, 128, 0)
-    purple = (128, 0, 255)
-    yellow = (255, 255, 0)
-    pink = (255, 0, 255)
-    navy = (0, 64, 128)
-    brown = (128, 64, 0)
+    black = (0, 0, 0, 1)
+    red = (1, 0, 0, 1)
+    green = (0, 0.75, 0, 1)
+    blue = (0, 0, 1, 1)
+    orange = (1, 0.67, 0, 1)
+    darkGreen = (0, 0.5, 0, 1)
+    purple = (0.5, 0, 1, 1)
+    yellow = (1, 1, 0, 1)
+    pink = (1, 0, 1, 1)
+    navy = (0, 0.25, 0.5, 1)
+    brown = (0.5, 0.25, 0, 1)
+
+    def set_alpha(color, alpha):
+        r, g, b, _ = color
+        return r, g, b, alpha

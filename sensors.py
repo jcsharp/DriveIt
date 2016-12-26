@@ -43,7 +43,15 @@ class DistanceSensor(Part):
 
 
     def get_geometry(self):
-        d = 0.01
+        d = 0.0075
         sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
-        sensor.set_color(255, 0, 0)
-        return [sensor]
+        sensor.set_color(1, 0, 0)
+
+        range_max, range_min, cone, precision = self.specs
+        ry = range_max * sin(cone) / 2.
+        rx = range_max * cos(cone)
+        cone = rendering.PolyLine([(rx, ry), (0., 0.), (rx, -ry)], close=False)
+        cone.set_linewidth(1)
+        cone._color.vec4 = (1, 0, 0, 0.3)
+
+        return [sensor, cone]
