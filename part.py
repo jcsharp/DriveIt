@@ -59,8 +59,8 @@ class Part():
         x2, y2, th2 = part.get_position()
         d, alpha = self.distance(x2, y2)
         alpha2 = th2 - th1 + alpha 
-        r2 = part.radius(alpha2)
-        return d - r2, alpha
+        bd2 = part.boundary_distance(alpha2)
+        return d - bd2, alpha
         
 
     def distance(self, x, y):
@@ -72,14 +72,14 @@ class Part():
         dy = y - y1
         dc = math.sqrt(dx ** 2 + dy ** 2)
         alpha = canonical_angle(math.atan2(dy, dx) - th1)
-        r = self.radius(alpha)
+        r = self.boundary_distance(alpha)
         d = dc - r
         return d, alpha
         
 
-    def radius(self, alpha):
+    def boundary_distance(self, alpha):
         '''
-        Calculates the part's thickness in the specified direction.
+        Calculates the part's boundary distance in the specified direction.
         '''
         return 0.0
 
@@ -139,4 +139,26 @@ class Part():
 
         for part in self.parts:
             part.render(viewer)
+
+
+
+class RectangularPart(Part):
+    def __init__(self, length, width):
+        self.length = length
+        self.width = width
+        self._diag_angle = math.atan2(width, length)
+        Part.__init__(self)
+
+
+    def boundary_distance(self, alpha):
+        '''
+        Calculates the rectangle's boundary distance in the specified direction.
+        '''
+        l = self.length / 2.0
+        w = self.width / 2.0
+        alpha = abs(wrap(alpha, -pi / 2.0, pi / 2.0))
+        if alpha <= self._diag_angle:
+            return l / cos(alpha)
+        else:
+            return w / sin(alpha)
 

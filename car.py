@@ -18,8 +18,7 @@ throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
 
 class CarSpecifications():
     car_width = 0.12
-    car_lenght = 0.24
-    diag_angle = math.atan2(car_width, car_lenght)
+    car_length = 0.24
     steer_step = 0.1
     throttle_step = 0.1
     K_max = 4.5
@@ -28,12 +27,12 @@ class CarSpecifications():
         self.v_max = v_max
 
 
-class Car(Part):
+class Car(RectangularPart):
     
     breadcrumb = None
 
     def __init__(self, color=Color.black, specs=CarSpecifications(), trail_length=180, *args, **kwargs):
-        Part.__init__(self)
+        RectangularPart.__init__(self, specs.car_length, specs.car_width)
         self.specs = specs
         self.color = color
         self.trail_length = trail_length
@@ -113,19 +112,6 @@ class Car(Part):
         return x, y, theta, steer, throttle, d, v, K
 
 
-    def radius(self, alpha):
-        '''
-        Calculates the car's radius in the specified direction.
-        '''
-        l = self.specs.car_lenght / 2.0
-        w = self.specs.car_width / 2.0
-        alpha = abs(wrap(alpha, -pi / 2.0, pi / 2.0))
-        if alpha <= self.specs.diag_angle:
-            return l / cos(alpha)
-        else:
-            return w / sin(alpha)
-
-
     def _safe_throttle_move(steer, throttle, desired_change):
         '''
         Moves the throttle by the desired amout or according to the safe speed limit.
@@ -154,10 +140,10 @@ class Car(Part):
 
     def get_geometry(self):
 
-        l = -self.specs.car_lenght / 2.0
-        r = self.specs.car_lenght / 2.0
-        t = self.specs.car_width / 2.0
-        b = -self.specs.car_width / 2.0
+        l = -self.length / 2.0
+        r = self.length / 2.0
+        t = self.width / 2.0
+        b = -self.width / 2.0
 
         body = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
         body.set_color(1, 1, 1)

@@ -82,7 +82,7 @@ class DriveItEnv(gym.Env):
             # keep 10 cm distance between cars
             for j in range(i):
                 d, _ = self.cars[j].distance(x, y)
-                if d < 0.1 + car.specs.car_lenght / 2.0:
+                if d < 0.1 + car.length / 2.0:
                     return self._reset_car(i, random_position)
         
             theta, K = DriveItEnv.median_properties(x_m)
