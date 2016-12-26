@@ -22,6 +22,7 @@ class CarSpecifications():
     steer_step = 0.1
     throttle_step = 0.1
     K_max = 4.5
+    max_accel = 10.0
 
     def __init__(self, v_max=2.5):
         self.v_max = v_max
@@ -98,7 +99,12 @@ class Car(RectangularPart):
 
         dp = throttle_actions[action] * self.specs.throttle_step
         throttle = Car._safe_throttle_move(steer, throttle_, dp)
-        v = self.specs.v_max * throttle
+
+        deltav = self.specs.v_max * throttle - v_
+        dvmax = self.specs.max_accel * dt
+        if abs(deltav) > dvmax:
+            deltav = math.copysign(dvmax, deltav)
+        v = v_ + deltav
 
         a = (v - v_) / dt
         K_dot = (K - K_) / dt
