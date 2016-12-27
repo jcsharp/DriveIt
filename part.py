@@ -11,7 +11,7 @@ class Part():
         self.parent = None
         self.parts = []
         self._transform = None
-        self._render_transforms = None
+        self._render_transform = None
         self.set_position(0., 0., 0.)
 
 
@@ -106,8 +106,8 @@ class Part():
         ca = cos(a)
         sa = sin(a)
         return np.matrix([\
-            [ ca, sa, 0., 0.], \
-            [-sa, ca, 0., 0.], \
+            [ ca, -sa, 0., 0.], \
+            [ sa, ca, 0., 0.], \
             [ 0., 0., 1., a ], \
             [ 0., 0., 0., 1.]])
 
@@ -133,17 +133,13 @@ class Part():
 
     def render(self, viewer):
 
-        if self._render_transforms is None:
+        if self._render_transform is None:
             self._render_transform = rendering.Transform()
-            self._render_transforms = [self._render_transform]
-            if not self.parent is None:
-                self._render_transforms.extend(self.parent._render_transforms)
             for g in self.get_geometry():
                 viewer.add_geom(g)
-                for trans in self._render_transforms:
-                    g.add_attr(trans)
+                g.add_attr(self._render_transform)
 
-        x, y, theta, _ = self._position
+        x, y, theta = self.get_position()
         self._render_transform.set_translation(x, y)
         self._render_transform.set_rotation(theta)
 
