@@ -12,6 +12,7 @@ class Part():
         self.parts = []
         self._transform = None
         self._render_transform = None
+        self._apos = None
         self.set_position(0., 0., 0.)
 
 
@@ -19,6 +20,8 @@ class Part():
         self._position = np.array([x, y, theta, 1])
         if len(self.parts) > 0:
             self.set_transform()
+        for part in self.parts:
+            part._apos = None
 
 
     def set_rotation(self, theta):
@@ -40,8 +43,10 @@ class Part():
         if self.parent is None:
             return self._position[:-1]
         else:
-            pos = np.reshape(self._position, (4,1))
-            return (self.parent._transform * pos)[:-1]
+            if self._apos is None:
+                pos = np.reshape(self._position, (4,1))
+                self._apos = (self.parent._transform * pos)[:-1]
+            return self._apos
 
         
     def part_distances(self, parts):
@@ -160,6 +165,7 @@ class RectangularPart(Part):
         self.front_right = self.add_part(Part(), self.length / 2., -self.width / 2., 0.)
         self.back_left = self.add_part(Part(), -self.length / 2., self.width / 2., 0.)
         self.back_right = self.add_part(Part(), -self.length / 2., -self.width / 2., 0.)
+        self.corners = (self.front_left, self.front_right, self.back_left, self.back_right)
 
 
     def boundary_distance(self, alpha):
