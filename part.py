@@ -93,6 +93,12 @@ class Part():
         return 0.0
 
 
+    def visible_arc(self, angle):
+        xp, yp, thp = self.get_position()
+        thcs = thp - angle
+        return self.boundary_distance(thcs)
+
+
     def is_collided(self, part):
         dist, angle = self.part_distance(part)
         return dist <= 0.
@@ -179,4 +185,12 @@ class RectangularPart(Part):
             return l / cos(alpha)
         else:
             return w / sin(alpha)
+
+
+    def visible_arc(self, alpha):
+        xp, yp, thp = self.get_position()
+        thcs = thp - alpha
+        appw = max(self.width, self.length * abs(sin(thcs))) / 2.
+        return appw
+
 

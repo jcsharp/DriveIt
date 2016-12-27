@@ -35,12 +35,9 @@ class DistanceSensor(Part):
             if part_dist < dist:
                 if abs(alpha) <= cone:
                     dist = part_dist
-                elif isinstance(part, RectangularPart):
-                    xs, ys, ths = self.get_position()
-                    xp, yp, thp = part.get_position()
-                    thcs = thp - ths
-                    appw = max(part.width, part.length * abs(sin(thcs))) / 2.
-                    arc = math.atan2(appw, part_dist)
+                else:
+                    visa = part.visible_arc(alpha)
+                    arc = math.atan2(visa, part_dist)
                     if abs(alpha) - arc <= cone:
                         dist = part_dist
 
