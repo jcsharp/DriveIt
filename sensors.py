@@ -30,9 +30,14 @@ class DistanceSensor(Part):
 
         range_max, range_min, cone, precision = self.specs
         dist = range_max
-        for part_dist, alpha, _ in self.part_distances(parts):
-            if abs(alpha) <= cone and dist > part_dist:
-                dist = part_dist
+        for part_dist, alpha, part in self.part_distances(parts):
+            if part_dist < dist:
+                if abs(alpha) <= cone:
+                    dist = part_dist
+                elif isinstance(part, RectangularPart):
+                    for part_dist, alpha, _ in self.part_distances(part.corners):
+                        if part_dist < dist and abs(alpha) <= cone:
+                            dist = part_dist
 
         dist = np.random.normal(dist, precision)
 
