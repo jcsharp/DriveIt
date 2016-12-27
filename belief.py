@@ -3,8 +3,8 @@ from car import *
 
 class PositionTracking():
 
-    def __init__(self, specs=CarSpecifications()):
-        self.specs = specs
+    def __init__(self, car=Car()):
+        self.car = car
 
 
     def reset(self, observation):
@@ -54,14 +54,14 @@ class PositionTracking():
 
 
     def reset_all(trackers, observations):
-        b = []
-        for i in range(len(trackers)):
-            b.append(trackers[i].reset(observations[i]))
+        b = {}
+        for tracker in trackers:
+            b[tracker.car] = tracker.reset(observations[tracker.car])
         return b
 
 
     def update_all(trackers, observations, dt):
-        b = []
-        for i in range(len(trackers)):
-            b.append(trackers[i].update(observations[i], dt))
+        b = {}
+        for tracker in trackers:
+            b[tracker.car] = tracker.update(observations[tracker.car], dt)
         return b

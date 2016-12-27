@@ -114,14 +114,14 @@ class DriveItEnv(gym.Env):
         '''
 
         self.time = 0.0
-        self.observations = []
-        self.state = []
-        placed_cars = []
+        self.observations = {}
+        self.state = {}
 
         for i in range(len(self.cars)):
             x, y, theta, steer, throttle, odometer, v, K = self._reset_car(i, random_position)
-            self.observations.append(np.array((odometer, 0.0, theta, v, K)))
-            self.state.append((odometer, 0.0))
+            car = self.cars[i]
+            self.observations[car] = np.array((odometer, 0.0, theta, v, K))
+            self.state[car] = (odometer, 0.0)
         
         return self.observations
 
@@ -132,19 +132,15 @@ class DriveItEnv(gym.Env):
             raise ValueError('Wrong number of actions.')
 
         self.time += dt
-        observations = []
-        rewards = []
-        rewards = []
-        state = []
+        rewards = {}
         exits = []
 
-        for i in range(self.car_num):
-            a = actions[i]
-            car = self.cars[i]
-            x_m_, bias = self.state[i]
+        for car in self.cars:
+            action = actions[car]
+            x_m_, bias = self.state[car]
 
             # move the car
-            x, y, theta, steer, throttle, d, v, K = car.step(a, dt)
+            x, y, theta, steer, throttle, d, v, K = car.step(action, dt)
 
             # read sensors
             blue = self._blueness(x, y)
@@ -181,11 +177,10 @@ class DriveItEnv(gym.Env):
             if out or wrong_way:
                 reward = self.out_reward
 
-            observations.append((d, blue, theta_hat, v_hat, K))
-            rewards.append(reward)
-            state.append((x_m, bias))
+            self.observations[car] = (d, blue, theta_hat, v_hat, K)
+            rewards[car] = reward
+            self.state[car] = (x_m, bias)
 
-        self.state = state
         # are we done yet?
         timeout = self.time >= self.time_limit
         done = timeout #or out or wrong_way
@@ -194,11 +189,14 @@ class DriveItEnv(gym.Env):
         for car1 in self.cars:
             car2 = car1.detect_collision(self.cars)
             if car2 is not None:
-                # TODO: set penalties
+                if self.state[car1][0] < 0 and self.state[car2][0] > 0:
+                    rewards[car2] = self.out_reward
+                else:
+                    rewards[car1] = self.out_reward
                 done = True
 
 
-        return observations, rewards, done, { \
+        return self.observations, rewards, done, { \
             'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
         }
 
