@@ -118,6 +118,32 @@ class Car(RectangularPart):
         return x, y, theta, steer, throttle, d, v, K
 
 
+    def detect_collision(self, cars):
+        for car in cars:
+            if car != self:
+
+                if car.is_collided(self.front_left) \
+                or car.is_collided(self.front_right):
+                    return car
+
+                if self.is_collided(car.back_left) \
+                or self.is_collided(car.back_right):
+                    return car
+
+        return None
+
+
+    def get_velocity(self):
+        v = self.state[3]
+        th = self._position[2]
+        return v, th
+
+
+    def set_velocity(self, v):
+        steer, throttle, d, _, K = self.state
+        self.state = steer, throttle, d, v, K
+
+
     def _safe_throttle_move(steer, throttle, desired_change):
         '''
         Moves the throttle by the desired amout or according to the safe speed limit.
@@ -167,7 +193,7 @@ class Car(RectangularPart):
 
     def render(self, viewer):
         
-        self.steering_wheel.set_rotation(self.state[0] * pi / 2.0)
+        self.steering_wheel.set_rotation(self.state[0] * right_angle)
         x, y, theta = self.get_position()
         self.breadcrumb.v.append((x, y))
         if len(self.breadcrumb.v) > self.trail_length:

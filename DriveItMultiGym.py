@@ -136,6 +136,7 @@ class DriveItEnv(gym.Env):
         rewards = []
         rewards = []
         state = []
+        exits = []
 
         for i in range(self.car_num):
             a = actions[i]
@@ -152,7 +153,7 @@ class DriveItEnv(gym.Env):
                 # add observation noise
                 bias = max(-0.01, min(0.01, self.np_random.normal(bias, 0.0001)))
                 theta_hat = canonical_angle(theta + bias)
-                v_noise = 0.0 if v == 0 else self.np_random.normal(0, v * 0.003)
+                v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * 0.003)
                 v_hat = v + v_noise
                 d += v_noise * dt
             else:
@@ -171,9 +172,9 @@ class DriveItEnv(gym.Env):
                 d = -checkpoint_median_length
                 car.reset_odometer(d)
 
-            # are we done yet?
             out = blue >= blue_threshold
             wrong_way = DriveItEnv._is_wrong_way(x, y, theta, x_m < 0.0)
+            exits.append('out' if out else 'wrong way' if wrong_way else None)
 
             # reward progress
             reward = dx_m
@@ -185,10 +186,17 @@ class DriveItEnv(gym.Env):
             state.append((x_m, bias))
 
         self.state = state
+        # are we done yet?
         timeout = self.time >= self.time_limit
-
-        # TODO: collision check
         done = timeout #or out or wrong_way
+
+        # collision detection
+        for car1 in self.cars:
+            car2 = car1.detect_collision(self.cars)
+            if car2 is not None:
+                # TODO: set penalties
+                done = True
+
 
         return observations, rewards, done, { \
             'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
@@ -222,14 +230,14 @@ class DriveItEnv(gym.Env):
         if x > -median_radius and y < median_radius:
             dx = x - median_radius
             dy = -y - median_radius
-            alpha = np.arctan2(dy, dx) + pi / 2.0
+            alpha = np.arctan2(dy, dx) + right_angle
             return line_length + alpha * median_radius, False, False
 
         # upper-left loop
         else:
             dy = y - median_radius
             dx = -x - median_radius
-            alpha = np.arctan2(dx, dy) + pi / 2.0
+            alpha = np.arctan2(dx, dy) + right_angle
             return -loop_median_length + alpha * median_radius, False, False
 
 
@@ -280,7 +288,7 @@ class DriveItEnv(gym.Env):
         else:
             # checkpoint straight line
             if x_m < -loop_median_length:
-                return pi / 2.0, 0.0
+                return right_angle, 0.0
             # upper-left loop
             else:
                 alpha = -x_m / median_radius
@@ -329,9 +337,9 @@ class DriveItEnv(gym.Env):
             if y < -wrong_way_min and y > -wrong_way_max and theta < 0:
                 return True
         elif abs(y) < half_track_width:
-            if x > wrong_way_min and x < wrong_way_max and abs(theta) < pi / 2.0:
+            if x > wrong_way_min and x < wrong_way_max and abs(theta) < right_angle:
                 return checkpoint
-            if x < -wrong_way_min and x > -wrong_way_max and abs(theta) > pi / 2.0:
+            if x < -wrong_way_min and x > -wrong_way_max and abs(theta) > right_angle:
                 return True
 
 

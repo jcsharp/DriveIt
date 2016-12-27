@@ -26,6 +26,11 @@ class Part():
         self.set_position(x, y, theta)
 
 
+    def translate(self, dist, angle):
+        x, y, theta, _ = self._position
+        self.set_position(x + dist * cos(angle), y + dist * sin(angle), theta)
+
+
     def set_transform(self):
         x, y, theta = self.get_position() 
         self._transform = Part.get_transform(x, y, theta)
@@ -72,9 +77,8 @@ class Part():
         dy = y - y1
         dc = math.sqrt(dx ** 2 + dy ** 2)
         alpha = canonical_angle(math.atan2(dy, dx) - th1)
-        r = self.boundary_distance(alpha)
-        d = dc - r
-        return d, alpha
+        bd = self.boundary_distance(alpha)
+        return dc - bd, alpha
         
 
     def boundary_distance(self, alpha):
@@ -84,12 +88,18 @@ class Part():
         return 0.0
 
 
+    def is_collided(self, part):
+        dist, angle = self.part_distance(part)
+        return dist <= 0.
+
+
     def add_part(self, part, x, y, theta):
         if self._transform is None:
             self.set_transform()
         part.set_position(x, y, theta)
         part.parent = self
         self.parts.append(part)
+        return part
 
 
     def get_rotation(a):
@@ -143,11 +153,17 @@ class Part():
 
 
 class RectangularPart(Part):
+
     def __init__(self, length, width):
+        Part.__init__(self)
         self.length = length
         self.width = width
         self._diag_angle = math.atan2(width, length)
-        Part.__init__(self)
+
+        self.front_left = self.add_part(Part(), self.length / 2., self.width / 2., 0.)
+        self.front_right = self.add_part(Part(), self.length / 2., -self.width / 2., 0.)
+        self.back_left = self.add_part(Part(), -self.length / 2., self.width / 2., 0.)
+        self.back_right = self.add_part(Part(), -self.length / 2., -self.width / 2., 0.)
 
 
     def boundary_distance(self, alpha):
@@ -156,7 +172,7 @@ class RectangularPart(Part):
         '''
         l = self.length / 2.0
         w = self.width / 2.0
-        alpha = abs(wrap(alpha, -pi / 2.0, pi / 2.0))
+        alpha = abs(wrap(alpha, -right_angle, right_angle))
         if alpha <= self._diag_angle:
             return l / cos(alpha)
         else:

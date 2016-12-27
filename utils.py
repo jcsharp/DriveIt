@@ -8,6 +8,8 @@ import numpy as np
 from numpy import cos, sin, pi
 
 
+right_angle = pi / 2.0
+
 def canonical_angle(x):
     '''
     Gets the canonical value of an angle.
