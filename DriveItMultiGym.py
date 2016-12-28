@@ -50,9 +50,8 @@ class DriveItEnv(gym.Env):
         
         self.viewer = None
 
-        high = np.array([  1.0,  1.0,  1.0,  1.0, 1.0, 1.0 ])
-        low  = np.array([ -1.0, -1.0, -1.0, -1.0, 0.0, 0.0 ])
-
+        high = np.array([  checkpoint_median_length, 1.0,  pi, cars[0].specs.v_max,  cars[0].specs.K_max ])
+        low  = np.array([ -checkpoint_median_length, 0.0, -pi,                 0.0, -cars[0].specs.K_max ])
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
 

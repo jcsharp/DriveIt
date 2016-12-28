@@ -1,10 +1,15 @@
 from DriveItMultiGym import *
 from car import *
+from gym import spaces
 
 class PositionTracking():
 
     def __init__(self, car=Car()):
         self.car = car
+        high = np.array([  checkpoint_median_length,  half_track_width,  pi, cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ])
+        low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,                 0.0, -cars[0].specs.K_max, 0.0 ])
+        self.action_space = spaces.Discrete(len(steer_actions))
+        self.observation_space = spaces.Box(low, high)
 
 
     def reset(self, observation):
