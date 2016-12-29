@@ -43,6 +43,7 @@ class DriveItEnv(gym.Env):
         self.time_limit = time_limit
         self.noisy = noisy
         self.car_num = len(cars)
+        self.dt = dt
 
         # corresponds to the maximum discounted reward over a median lap
         max_reward = cars[0].specs.v_max * dt / (1 - gamma)
@@ -132,7 +133,7 @@ class DriveItEnv(gym.Env):
 
         self.time += dt
         rewards = {}
-        exits = []
+        exits = {}
 
         for car in self.cars:
             action = actions[car]
@@ -169,7 +170,8 @@ class DriveItEnv(gym.Env):
 
             out = blue >= blue_threshold
             wrong_way = DriveItEnv._is_wrong_way(x, y, theta, x_m < 0.0)
-            exits.append('out' if out else 'wrong way' if wrong_way else None)
+            if out or wrong_way:
+                exits[car] = 'out' if out else 'wrong way' if wrong_way else None
 
             # reward progress
             reward = dx_m
@@ -182,17 +184,18 @@ class DriveItEnv(gym.Env):
 
         # are we done yet?
         timeout = self.time >= self.time_limit
-        done = timeout #or out or wrong_way
+        done = timeout or len(exits) > 0 #or out or wrong_way
 
         # collision detection
-        for car1 in self.cars:
-            car2 = car1.detect_collision(self.cars)
-            if car2 is not None:
-                if self.state[car1][0] < 0 and self.state[car2][0] > 0:
-                    rewards[car2] = self.out_reward
-                else:
-                    rewards[car1] = self.out_reward
-                done = True
+        if self.car_num > 1:
+            for car1 in self.cars:
+                car2 = car1.detect_collision(self.cars)
+                if car2 is not None:
+                    if self.state[car1][0] < 0 and self.state[car2][0] > 0:
+                        rewards[car2] = self.out_reward
+                    else:
+                        rewards[car1] = self.out_reward
+                    done = True
 
 
         return self.observations, rewards, done, { \
@@ -371,7 +374,7 @@ class DriveItEnv(gym.Env):
 
     def _img_color(self, img_x, img_y):
         pos = img_x * 4 + img_y * self.track.img.width * 4
-        if pos < 0 or pos > len(self.track.img.data) + 4:
+        if pos < 0 or pos > len(self.track.img.data) - 4:
             return None
         else:
             return self.track.img.data[pos:pos + 4]
@@ -390,7 +393,7 @@ class DriveItEnv(gym.Env):
         for i in range(img_x - n, img_x + n + 1):
             for j in range(img_y - n, img_y + n + 1):
                 c = self._img_color(i, j)
-                if c != None:
+                if c is not None:
                     b_, g_, r_, a_ = c
                     b += b_; g += g_; r += r_; a += a_
                     count += 1

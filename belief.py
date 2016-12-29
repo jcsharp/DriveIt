@@ -6,8 +6,8 @@ class PositionTracking():
 
     def __init__(self, car=Car()):
         self.car = car
-        high = np.array([  checkpoint_median_length,  half_track_width,  pi, cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ])
-        low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,                 0.0, -cars[0].specs.K_max, 0.0 ])
+        high = np.array([  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max, 1.0 ])
+        low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max, 0.0 ])
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
 
