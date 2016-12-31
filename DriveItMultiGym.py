@@ -99,7 +99,7 @@ class DriveItEnv(gym.Env):
             theta, K = DriveItEnv.median_properties(x_m)
             steer = K / car.specs.K_max
 
-        throttle = 0.0 
+        throttle = 0.0
         return car.reset(x, y, theta, steer, throttle, x_m)
         
 
@@ -412,4 +412,7 @@ class DriveItEnv(gym.Env):
         channels of the (simulated) RGB color sensor.
         '''
         b, g, r, a = self._track_color(x, y, n=1)
-        return (b - r) / 217
+        if a == 0:
+            return 1.0
+        else:
+            return (b - r) / 217
