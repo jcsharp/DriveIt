@@ -58,6 +58,10 @@ class PositionTracking():
         return x_m, y_m, theta, v, K, blue
 
 
+    def normalize(self, belief):
+        return belief / self.observation_space.high
+
+
     def reset_all(trackers, observations):
         b = {}
         for tracker in trackers:
