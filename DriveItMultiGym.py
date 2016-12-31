@@ -99,7 +99,7 @@ class DriveItEnv(gym.Env):
             theta, K = DriveItEnv.median_properties(x_m)
             steer = K / car.specs.K_max
 
-        throttle = 0.0
+        throttle = self.np_random.uniform(0.0, Car._safe_throttle(steer))
         return car.reset(x, y, theta, steer, throttle, x_m)
         
 
