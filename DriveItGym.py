@@ -17,20 +17,19 @@ steer_step = 0.1
 throttle_step = 0.1
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
-blue_threshold = 0.9
+blue_threshold = 0.75
 fps = 60.0
 dt = 1.0 / fps
 K_max = 4.5
 v_max = 2.5
 
-# track metrics
 median_radius = 0.375
 line_length = 2.0 * median_radius
 loop_median_length = 3.0 / 2.0 * pi * median_radius
 checkpoint_median_length = line_length + loop_median_length
 lap_median_length = 2.0 * checkpoint_median_length
+
 half_track_width = 0.225
-blue_width = 0.15
 wrong_way_min = 0.275
 wrong_way_max = median_radius
 
@@ -42,12 +41,11 @@ class DriveItEnv(gym.Env):
 
 
     def __init__(self, time_limit=10, throttle_limit=1.0, gamma=0.98, \
-                 show_belief_state=False, noisy=True, trail_length=2.4):
+                 show_true_median_pos=False, trail_length=2.4):
         
         self.time_limit = time_limit
         self.throttle_limit = throttle_limit
-        self.show_belief_state = show_belief_state
-        self.noisy = noisy
+        self.show_true_median_pos = show_true_median_pos
         self.trail_length = trail_length
 
         # corresponds to the maximum discounted reward over a median lap
@@ -56,10 +54,12 @@ class DriveItEnv(gym.Env):
         
         self.viewer = None
 
-        high = np.array([  1.0,  1.0,  1.0,  1.0, 1.0, 1.0 ])
-        low  = np.array([ -1.0, -1.0, -1.0, -1.0, 0.0, 0.0 ])
+        high = np.array([  1.0,  1.0,  1.0,  1.0, 1.0 ])
+        low  = np.array([ -1.0, -1.0, -1.0, -1.0, 0.0 ])
 
         self.action_space = spaces.Discrete(len(steer_actions))
+        # for a continuous action space:
+        # self.action_space = spaces.Box(self.min_action, self.max_action, shape = (1,))
         self.observation_space = spaces.Box(low, high)
 
         fname = path.join(path.dirname(__file__), "track.png")
@@ -102,79 +102,77 @@ class DriveItEnv(gym.Env):
             throttle = int(self._safe_throttle(steer) * np.random.uniform() / throttle_step) * throttle_step
 
         else:
-            # the default startup position, on the lap threshold
             x, y, theta, steer = -median_radius, 0.0, 0.0, 0.0
             x_m, y_m, blue_left, blue_right = 0.0, 0.0, 0.0, 0.0
             throttle = 0.0
 
-        v = throttle * v_max
         
         self.time = 0.0
-        self.state = (x, y, theta, steer, throttle, x_m, y_m, x_m, 0.0)
-        self.observation = (x_m, 0.0, theta, steer, v)
-
-        if self.show_belief_state:
-            self.belief_position = (x, y, x_m < 0)
-            self.belief = (x_m, y_m, theta, steer, v, 0.0)
-            return self._normalize_belief(self.belief)
-        else:
-            return self._normalize_observation(self.observation)
+        self.state = (x, y, theta, steer, throttle, x_m, y_m)
+        self.belief = (x_m, y_m, theta)
+        observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
+        return observation
 
 
-    def _dsdt(self, s, t, a, K_dot):
-        '''
-        Computes derivatives of state parameters.
-        '''
-        x, y, theta, v, K, d = s
-        x_dot = v * cos(theta)
-        y_dot = v * sin(theta)
-        theta_dot = v * K
-        return x_dot, y_dot, theta_dot, a, K_dot, v
+    def _dsdt(self, s, t):
 
+        x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = s
 
-    def _move(self, x, y, theta, v, K, d, a, K_dot):
-        s = x, y, theta, v, K, d
-        I = rk4(self._dsdt, s, [0.0, dt], a, K_dot)
-        x, y, theta, v, K, d = I[1]
-        theta = canonical_angle(theta)
-        return x, y, theta, v, K, d
+        # position
+        dx = v * cos(theta)
+        dy = v * sin(theta)
+        median_heading, _ = self._median_properties(x_m)
+        err_heading = canonical_angle(theta - median_heading)
+        dxm = v * cos(err_heading)
+        dym = v * sin(err_heading)
+        dtheta = v * K
+
+        # belief
+        #median_heading, _ = self._median_properties(x_m_hat)
+        err_heading = canonical_angle(theta_hat - median_heading)
+        dxmh = v * cos(err_heading)
+        dymh = v * sin(err_heading)
+        dthetah = v_hat * K
+
+        return dx, dy, dtheta, dxm, dym, dv, dK, dxmh, dymh, dthetah, dv, 0.0, 0.0
 
 
     def _step(self, action):
         '''
-        Executes the specified action, computes a new state, observation, and reward.
+        Executes the specified action, computes a new state and the reward.
         '''
+
         self.time += dt
 
         # initial state
-        x_, y_, theta_, steer_, throttle_, x_m_, y_m_, d_, bias = self.state
-        v_ = v_max * throttle_
-        K_ = K_max * steer_
+        x, y, theta, steer_, throttle_, x_m_, y_m_ = self.state
+        x_m_hat, y_m_hat, theta_hat_ = self.belief
+        v = v_max * throttle_
+        K = K_max * steer_
 
         # action
         ds = steer_actions[action] * steer_step
         steer = max(min(steer_ + ds, 1.0), -1.0)
 
         dp = throttle_actions[action] * throttle_step
-        throttle = self._safe_throttle_move(steer_ + ds, throttle_, dp)
-        v = v_max * throttle
+        dp = self._throttle_override(steer_ + ds, throttle_, dp)
+        throttle = max(min(throttle_ + dp, 1.0), 0.0)
+        
+        dv = dp / dt
+        dK = K_max * ds / dt
+        v_hat = 0.0 if v == 0 else np.random.normal(v, v * 0.01)
 
-        a = v_max * (throttle - throttle_) / dt
-        K_dot = K_max * (steer - steer_) / dt
+        s_0 = (x, y, theta, x_m_, y_m_, v, K, \
+               x_m_hat, y_m_hat, theta_hat_, v_hat, \
+               dv, dK)
 
-        # get new state
-        x, y, theta, _, _, d = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
+        # integrate to get new state and belief
+        I = rk4(self._dsdt, s_0, [0.0, dt])
+        x, y, theta, x_m, y_m, v, K, x_m_hat, y_m_hat, theta_hat, v_hat, dv, dK = I[1]
+        theta = canonical_angle(theta)
 
-        if self.noisy:
-            # add observation noise
-            bias = max(-0.017, min(0.017, np.random.normal(bias, 0.001)))
-            theta_hat = canonical_angle(theta + bias)
-            v_noise = 0.0 if v == 0 else np.random.normal(0, v * 0.003)
-            v_hat = v + v_noise
-            d += v_noise * dt
-        else:
-            theta_hat = theta
-            v_hat = v
+        # add noise
+        theta_hat = canonical_angle(np.random.normal(theta, pi * 0.01))
 
         # read sensors
         blueness = self._blueness(x, y)
@@ -184,11 +182,15 @@ class DriveItEnv(gym.Env):
         y_m = self._lateral_error(x, y, x_m)
         dx_m = x_m - x_m_
         if lap:
-            d = 0
+            x_m_hat = 0
         if checkpoint:
             dx_m += lap_median_length
-            d = -checkpoint_median_length
+            x_m_hat = -checkpoint_median_length
 
+        # correction from floor sensor
+        if blueness != 0.0:
+            y_m_hat = y_m
+    
         # are we done yet?
         out = blueness >= blue_threshold
         wrong_way = self._is_wrong_way(x, y, theta, x_m < 0.0)
@@ -200,82 +202,19 @@ class DriveItEnv(gym.Env):
         if out or wrong_way:
             reward = self.out_reward
 
-        self.state = (x, y, theta, steer, throttle, x_m, y_m, d, bias)
-
-        observation = (d, blueness, theta_hat, steer, v_hat)
-
-        if self.show_belief_state:
-            self.belief = self.update_belief(observation)
-            retval = self._normalize_belief(self.belief)
-        else:
-            retval = self._normalize_observation(observation)
-
-        self.observation = observation
-
-        return retval, reward, done, { \
+        self.state = (x, y, theta, steer, throttle, x_m, y_m)
+        self.belief = (x_m_hat, y_m_hat, theta_hat)
+        observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, throttle))
+        return observation, reward, done, { \
             'checkpoint': checkpoint,
             'lap': lap,
             'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
         }
 
 
-    def update_belief(self, observation):
-
-        x_, y_, checkpoint = self.belief_position
-        d_, b_, theta_, steer_, v_ = self.observation
-        d, blueness, theta, steer, v = observation
-        K_ = K_max * steer_
-
-        # update position
-        a = ((v - v_) / dt + (d - d_) * dt) / 2.0 # average on speed and dist to reduce noise
-        K_dot = K_max * (steer - steer_) / dt
-        x, y, _, _, _, _ = self._move(x_, y_, theta_, v_, K_, d_, a, K_dot)
-
-        x_m, _, _ = self._median_distance(x, y, d_)
-        if d == -checkpoint_median_length: # checkpoint
-            checkpoint = True
-            x_m = -checkpoint_median_length
-            y = -median_radius
-
-        elif d == 0.0: # lap
-            checkpoint = False
-            x_m = 0
-            x = -median_radius
-        
-        if checkpoint and x_m > 0.0:
-            x_m = 0.0
-            x = -median_radius
-        
-        if x_m > checkpoint_median_length:
-            x_m = checkpoint_median_length
-            y = -median_radius
-
-        # lateral position
-        y_m = self._lateral_error(x, y, x_m)
-        #if blueness >= 0.1:
-        #    # the blue gradient is almost linear...
-        #    y_b = np.copysign(half_track_width + 0.00 + (blue_width + 0.00) * (blueness - 1), y_m)
-        #    dy = y_b - y_m
-        #    y_m += dy / 3.0
-
-        self.belief_position = (x, y, checkpoint)
-
-        return x_m, y_m, theta, steer, v, blueness
-
-    
-    def _normalize_observation(self, o):
-        x, b, th, st, v = o
-        return np.array((x / checkpoint_median_length, b, th / pi, st, v / v_max))
-
-
-    def _normalize_belief(self, b):
-        x, y, th, st, v, bl = b
-        return np.array((x / checkpoint_median_length, y / half_track_width, th / pi, st, v / v_max, bl))
-
-
     def _median_distance(self, x, y, current_mdist):
         '''
-        Calculates the normalized longitudinal position along the track.
+        Provides a normalized longitudinal position along the track.
         
         Returns (x_m, lap, checkpoint) where:
         x_m: is the normalized longitudinal position along the track,
@@ -397,6 +336,32 @@ class DriveItEnv(gym.Env):
         return y_m
 
 
+    def median_error(self, look_ahead=0.0):
+        '''
+        Compares the current car position with a trajectory that strictly 
+        follows the track median.
+
+        Returns the lateral, heading and steering error.
+        '''
+        
+        x, y, theta, steer, trottle, mdist_ = self.state
+
+        if look_ahead != 0.0:
+            mdist = mdist_ + look_ahead
+            if mdist > checkpoint_median_length:
+                mdist -= lap_median_length
+        else:
+            mdist = mdist_
+        
+        theta_, steer_ = self._median_properties(mdist)
+
+        lat_err = self._lateral_error(x, y, mdist_) / half_track_width
+        h_err = canonical_angle(theta - theta_) / pi
+        st_err = steer - steer_
+
+        return np.array((lat_err, h_err, st_err))
+
+
     def _is_wrong_way(self, x, y, theta, checkpoint):
         '''
         Checks if the car is making an illegal turn at the crossing.
@@ -413,15 +378,15 @@ class DriveItEnv(gym.Env):
                 return True
 
 
-    def _safe_throttle_move(self, steer, throttle, desired_change):
+    def _throttle_override(self, steer, throttle, dp):
         '''
-        Moves the throttle by the desired amout or according to the safe speed limit.
+        Indicates how to move the throttle based on safe speed for the specified steering.
         '''
         safe = self._safe_throttle(steer)
-        if throttle + desired_change > safe:
-            return safe
+        if throttle + dp > safe:
+            return math.copysign(throttle_step, safe - throttle)
         else:
-            return max(min(throttle + desired_change, 1.0), 0.0)
+            return throttle + dp
 
     def _safe_throttle(self, steer):
         '''
@@ -431,9 +396,6 @@ class DriveItEnv(gym.Env):
 
 
     def _render(self, mode='human', close=False):
-        '''
-        Draws the track and the car.
-        '''
         if close:
             if self.viewer is not None:
                 self.viewer.close()
@@ -487,7 +449,7 @@ class DriveItEnv(gym.Env):
             carout.add_attr(self.cartrans)
             self.viewer.add_geom(carout)
             
-        x, y, theta, steer, _, _, _, _, _ = self.state
+        x, y, theta, steer, _, _, _ = self.state
         self.cartrans.set_translation(x, y)
         self.cartrans.set_rotation(theta)
         self.steertrans.set_rotation(steer * pi / 2.0)
@@ -498,74 +460,39 @@ class DriveItEnv(gym.Env):
         return self.viewer.render(return_rgb_array=(mode == 'rgb_array'))
 
 
-    def _img_color(self, img_x, img_y):
-        pos = img_x * 4 + img_y * self.track.img.width * 4
-        if pos < 0 or pos > len(self.track.img.data) + 4:
-            return None
-        else:
-            return self.track.img.data[pos:pos + 4]
-
-
-    def _track_color(self, x, y, n=0):
+    def _track_color(self, x, y):
         '''
-        Gets the track color at the specified coordinates, averaging e pixels around that position.
+        Gets the track color at the specified coordinates.
         '''
         img_x = math.trunc((x + self.track.width / 2) / self.track.width * self.track.img.width)
         img_y = math.trunc((self.track.height - (y + self.track.height / 2)) \
             / self.track.height * self.track.img.height)
-        
-        count = 0
-        b, g, r, a = 0, 0, 0, 0
-        for i in range(img_x - n, img_x + n + 1):
-            for j in range(img_y - n, img_y + n + 1):
-                c = self._img_color(i, j)
-                if c != None:
-                    b_, g_, r_, a_ = c
-                    b += b_; g += g_; r += r_; a += a_
-                    count += 1
-
-        if count == 0:
+        pos = img_x * 4 + img_y * self.track.img.width * 4
+        if pos < 0 or pos > len(self.track.img.data):
             return (0, 0, 0, 0)
         else:
-            return (b / count, g / count, r / count, a / count)
+            return self.track.img.data[pos:pos + 4]
 
 
     def _blueness(self, x, y):
         '''
-        Gets the blueness of the track at the specified coordinates.
+        Gets the _blueness_ of the track at the specified coordinates.
 
         The blueness is the normalized difference between the blue and the red 
-        channels of the (simulated) RGB color sensor.
+        channels of the RGB color sensor.
         '''
-        b, g, r, a = self._track_color(x, y, n=1)
+        b, g, r, a = self._track_color(x, y)
         if a == 0:
             return 1.0
         else:
-            return (b - r) / 217
+            return (b - r) / 255
 
 
 def canonical_angle(x):
     '''
     Gets the canonical value of an angle.
     '''
-    return wrap(x, -pi, pi)
-
-
-def wrap(x, m, M):
-    """
-    :param x: a scalar
-    :param m: minimum possible value in range
-    :param M: maximum possible value in range
-    Wraps ``x`` so m <= x <= M; but unlike ``bound()`` which
-    truncates, ``wrap()`` wraps x around the coordinate system defined by m,M.\n
-    For example, m = -180, M = 180 (degrees), x = 360 --> returns 0.
-    """
-    diff = M - m
-    while x > M:
-        x = x - diff
-    while x < m:
-        x = x + diff
-    return x
+    return ((x + np.pi) % (2 * np.pi)) - np.pi
 
 
 def rk4(derivs, y0, t, *args, **kwargs):
