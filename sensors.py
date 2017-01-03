@@ -20,10 +20,10 @@ class DistanceSensor(Part):
 
 
     def long_range():
-        return DistanceSensor(1., 0.03, 22.5 / 360. * pi, 0.01)
+        return DistanceSensor(1., 0.03, 20 / 360. * pi, 0.01)
 
     def short_range():
-        return DistanceSensor(0.25, 0.01, 22.5 / 360. * pi, 0.001)
+        return DistanceSensor(0.25, 0.01, 25 / 360. * pi, 0.001)
 
 
     def read(self, parts):
@@ -54,9 +54,9 @@ class DistanceSensor(Part):
         sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
         sensor.set_color(1, 0, 0)
 
-        range_max, range_min, cone, precision = self.specs
-        ry = range_max * sin(cone) / 2.
-        rx = range_max * cos(cone)
+        range_max, range_min, arc, precision = self.specs
+        ry = range_max * sin(arc)
+        rx = range_max * cos(arc)
         cone = rendering.PolyLine([(rx, ry), (0., 0.), (rx, -ry)], close=False)
         cone.set_linewidth(1)
         cone._color.vec4 = (1, 0, 0, 0.3)
