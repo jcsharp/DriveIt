@@ -51,8 +51,8 @@ class DriveItEnv(gym.Env):
         
         self.viewer = None
 
-        high = np.array([  checkpoint_median_length, 1.0,  pi, cars[0].specs.v_max,  cars[0].specs.K_max ])
-        low  = np.array([ -checkpoint_median_length, 0.0, -pi,                 0.0, -cars[0].specs.K_max ])
+        high = np.array([  checkpoint_median_length, 1.0,  pi, cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ])
+        low  = np.array([ -checkpoint_median_length, 0.0, -pi,                 0.0, -cars[0].specs.K_max, 0.0 ])
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
 
@@ -99,7 +99,8 @@ class DriveItEnv(gym.Env):
             theta, K = DriveItEnv.median_properties(x_m)
             steer = K / car.specs.K_max
 
-        throttle = self.np_random.uniform(0.0, Car._safe_throttle(steer))
+        throttle = self.np_random.uniform(0.0, Car._safe_throttle(steer)) \
+            if self.noisy else Car._safe_throttle(steer)
         return car.reset(x, y, theta, steer, throttle, x_m)
         
 
@@ -120,7 +121,7 @@ class DriveItEnv(gym.Env):
         for i in range(len(self.cars)):
             x, y, theta, steer, throttle, odometer, v, K = self._reset_car(i, random_position)
             car = self.cars[i]
-            self.observations[car] = np.array((odometer, 0.0, theta, v, K))
+            self.observations[car] = np.array((odometer, 0.0, theta, v, K, 1.0 if odometer < 0.0 else 0.0))
             self.state[car] = (odometer, 0.0)
         
         return self.observations
@@ -133,7 +134,7 @@ class DriveItEnv(gym.Env):
 
         self.time += dt
         rewards = {}
-        exits = {}
+        exits = []
 
         for car in self.cars:
             action = actions[car]
@@ -168,17 +169,13 @@ class DriveItEnv(gym.Env):
                 d = -checkpoint_median_length
                 car.reset_odometer(d)
 
-            out = blue >= blue_threshold
-            wrong_way = DriveItEnv._is_wrong_way(x, y, theta, x_m < 0.0)
-            if out or wrong_way:
-                exits[car] = 'out' if out else 'wrong way' if wrong_way else None
-
             # reward progress
             reward = dx_m
-            if out or wrong_way:
+            if (abs(y_m) > half_track_width) or (blue > blue_threshold):
                 reward = self.out_reward
+                exits.append(car)
 
-            self.observations[car] = (d, blue, theta_hat, v_hat, K)
+            self.observations[car] = (d, blue, theta_hat, v_hat, K, 1.0 if x_m < 0.0 else 0.0)
             rewards[car] = reward
             self.state[car] = (x_m, bias)
 
@@ -199,7 +196,7 @@ class DriveItEnv(gym.Env):
 
 
         return self.observations, rewards, done, { \
-            'done': 'complete' if timeout else 'out' if out else 'wrong way' if wrong_way else 'unknown'
+            'done': 'complete' if timeout else 'out'
         }
 
 
@@ -239,6 +236,37 @@ class DriveItEnv(gym.Env):
             dx = -x - median_radius
             alpha = np.arctan2(dx, dy) + right_angle
             return -loop_median_length + alpha * median_radius, False, False
+
+
+    def cartesian_to_median(x:float, y:float, checkpoint:bool):
+        '''
+        Calculates the median coordinates of the specified position.
+        '''
+        # on central cross
+        if abs(x) <= median_radius and abs(y) <= median_radius:
+
+            if checkpoint:
+                x_m = -checkpoint_median_length + y + median_radius
+                y_m = -x
+            else:
+                x_m = x + median_radius
+                y_m = y
+
+        # lower-right loop
+        elif x > -median_radius and y < median_radius:
+            dx = x - median_radius
+            dy = -y - median_radius
+            alpha = np.arctan2(dy, dx) + right_angle
+            x_m = line_length + alpha * median_radius
+            y_m = math.sqrt(dx ** 2 + dy ** 2) - median_radius
+
+        # upper-left loop
+        else:
+            dy = y - median_radius
+            dx = -x - median_radius
+            alpha = np.arctan2(dx, dy) + right_angle
+            x_m = -loop_median_length + alpha * median_radius
+            y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2) 
 
 
     def median_to_cartesian(x_m:float, y_m:float):
