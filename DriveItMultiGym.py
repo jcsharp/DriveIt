@@ -266,7 +266,9 @@ class DriveItEnv(gym.Env):
             dx = -x - median_radius
             alpha = np.arctan2(dx, dy) + right_angle
             x_m = -loop_median_length + alpha * median_radius
-            y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2) 
+            y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
+
+        return x_m, y_m
 
 
     def median_to_cartesian(x_m:float, y_m:float):
