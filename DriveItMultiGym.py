@@ -283,8 +283,8 @@ class DriveItEnv(gym.Env):
             # lower-right loop
             else:
                 alpha = (x_m - line_length) / median_radius
-                x = (median_radius + y_m) * (sin(alpha) + 1)
-                y = (median_radius + y_m) * (cos(alpha) - 1)
+                x = (median_radius + y_m) * sin(alpha) + median_radius
+                y = (median_radius + y_m) * cos(alpha) - median_radius
                 return x, y
 
         # after checkpoint
@@ -295,8 +295,8 @@ class DriveItEnv(gym.Env):
             # upper-left loop
             else:
                 alpha = -x_m / median_radius
-                x = (y_m - median_radius) * (1 + sin(alpha))
-                y = (median_radius - y_m) * (1 - cos(alpha))
+                x = (y_m - median_radius) * sin(alpha) - median_radius
+                y = (y_m - median_radius) * cos(alpha) + median_radius
                 return x, y
 
 
