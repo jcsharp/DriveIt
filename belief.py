@@ -14,51 +14,51 @@ class PositionTracking():
 
     def reset(self, observation):
         d, blue, theta, v, K, thres = observation
-        #x, y = DriveItEnv.median_to_cartesian(d, 0.0)
+        x, y = DriveItEnv.median_to_cartesian(d, 0.0)
         self.observation = observation
-        x, y, theta = self.car.get_position()
         self.position = x, y, d < 0.0
         return d, 0., theta, v, K
 
 
     def update(self, observation, dt):
-        #x_, y_, checkpoint = self.position
-        d, blue, theta, v, K, checkpoint_passed = observation
-        #d_, blue_, theta_, v_, K_, _ = self.observation
+        x_, y_, checkpoint_ = self.position
+        d, blue, theta, v, K, checkpoint = observation
+        d_, blue_, theta_, v_, K_, _ = self.observation
         self.observation = observation
 
-        #a = (v - v_) / dt
-        #K_dot = (K - K_) / dt
-        #x, y, _, _, _, _ = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
+        a = (v - v_) / dt
+        K_dot = (K - K_) / dt
+        x, y, _, _, _, _ = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
-        #x_m, _, _ = DriveItEnv.median_distance(x, y, d_)
+        x_m, y_m = DriveItEnv.cartesian_to_median(x, y, checkpoint)
 
-        #if thres and d < 0.0: # checkpoint
-        #    checkpoint = True
-        #    if x_m > 0.0:
-        #        x_m = -checkpoint_median_length
-        #        y = -median_radius
-        #elif thres and d >= 0.0: # lap
-        #    checkpoint = False
-        #    if x_m < 0.0:
-        #        x_m = 0
-        #        x = -median_radius
+        pos_adjusted = False
+
+        if checkpoint and not checkpoint_: # checkpoint threshold
+            if x_m > 0.0:
+                x_m = -checkpoint_median_length
+                y = -median_radius
+                pos_adjusted = True
+        elif checkpoint_ and not checkpoint: # lap threshold
+            if x_m < 0.0:
+                x_m = 0
+                x = -median_radius
+                pos_adjusted = True
         
-        #if checkpoint and x_m > 0.0:
-        #    x_m = 0.0
-        #    x = -median_radius
+        if checkpoint and x_m > 0.0:
+            x_m = 0.0
+            x = -median_radius
+            pos_adjusted = True
         
-        #if x_m > checkpoint_median_length:
-        #    x_m = checkpoint_median_length
-        #    y = -median_radius
+        if x_m > checkpoint_median_length:
+            x_m = checkpoint_median_length
+            y = -median_radius
+            pos_adjusted = True
 
-        #y_m = DriveItEnv.lateral_error(x, y, x_m)
+        if pos_adjusted:
+            y_m = DriveItEnv.lateral_error(x, y, x_m)
 
-        x, y, theta = self.car.get_position()
-        steer, throttle, d, v, K = self.car.state
-        x_m, y_m = DriveItEnv.cartesian_to_median(x, y, checkpoint_passed)
-
-        self.position = (x, y, checkpoint_passed)
+        self.position = (x, y, checkpoint)
 
         return x_m, y_m, theta, v, K
 
