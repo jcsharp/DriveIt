@@ -19,8 +19,8 @@ throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
 class CarSpecifications():
     car_width = 0.12
     car_length = 0.24
-    steer_step = 0.1
-    throttle_step = 0.1
+    steer_step = 0.05
+    throttle_step = 0.05
     K_max = 4.5
     max_accel = 10.0
 
