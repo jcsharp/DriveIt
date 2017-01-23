@@ -51,7 +51,7 @@ class Brain:
         self.trainer = Trainer(self.model, self.loss, eval_function, learner)
     
     def train(self, x, y):
-        arguments = dict(zip(self.loss.arguments, [y,x]))
+        arguments = dict(zip(self.loss.arguments, [x,y]))
         return self.trainer.train_minibatch(arguments, outputs=[self.loss.output])
 
     def predict(self, s, target=False):
