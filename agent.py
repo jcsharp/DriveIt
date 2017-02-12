@@ -106,7 +106,7 @@ class Agent:
         # get samples batch and train over the targets
         indexes, batch = self.memory.sample(size)
         x, y, err = self._getTargets(batch)
-        self.brain.train(x, y)
+        self.brain.train(y, x)
         
         # update the batch steps errors in memory
         for i in range(len(batch)):

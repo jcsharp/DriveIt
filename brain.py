@@ -48,7 +48,7 @@ class Brain:
 
         learner = momentum_sgd(self.model.parameters, lr_schedule, momentum, \
                                gradient_clipping_threshold_per_sample=10)
-        self.trainer = Trainer(self.model, self.loss, eval_function, learner)
+        self.trainer = Trainer(self.model, (self.loss, eval_function), learner)
     
     def train(self, x, y):
         arguments = dict(zip(self.loss.arguments, [y,x]))
@@ -67,7 +67,7 @@ class Brain:
         self.model_ = self.model.clone(method='clone')
         
     def saveModel(self, path):
-        self.model.save_model(path, False)
+        self.model.save(path, False)
         
     def loadModel(self, path):
         self.model = load_model(path)
