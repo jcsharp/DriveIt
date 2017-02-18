@@ -14,7 +14,7 @@ class PositionTracking():
 
     def reset(self, observation):
         d, blue, theta, v, K, thres = observation
-        x, y = DriveItEnv.median_to_cartesian(d, 0.0)
+        x, y, _ = DriveItEnv.median_to_cartesian(d, 0.0, 0.0)
         self.observation = observation
         self.position = x, y, d < 0.0
         return d, 0., theta, v, K
@@ -30,17 +30,23 @@ class PositionTracking():
         K_dot = (K - K_) / dt
         x, y, _, _, _, _ = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
-        x_m, y_m = DriveItEnv.cartesian_to_median(x, y, checkpoint)
+        x_m, y_m, theta_m = DriveItEnv.cartesian_to_median(x, y, theta, checkpoint)
 
         pos_adjusted = False
 
+        #if d == -checkpoint_median_length: # checkpoint
         if checkpoint and not checkpoint_: # checkpoint threshold
+            #checkpoint = True
             if x_m > 0.0:
+                #print('y adjusted chkp %f', (-median_radius - y))
                 x_m = -checkpoint_median_length
                 y = -median_radius
                 pos_adjusted = True
+        #elif d == 0.0: # lap
         elif checkpoint_ and not checkpoint: # lap threshold
+            #checkpoint = False
             if x_m < 0.0:
+                #print('x adjusted lap %f', (-median_radius - x))
                 x_m = 0
                 x = -median_radius
                 pos_adjusted = True
@@ -49,18 +55,20 @@ class PositionTracking():
             x_m = 0.0
             x = -median_radius
             pos_adjusted = True
+            #print('x adjusted')
         
         if x_m > checkpoint_median_length:
             x_m = checkpoint_median_length
             y = -median_radius
             pos_adjusted = True
+            #print('y adjusted')
 
         if pos_adjusted:
-            y_m = DriveItEnv.lateral_error(x, y, x_m)
+            x_m, y_m, theta_m = DriveItEnv.cartesian_to_median(x, y, theta, checkpoint)
 
         self.position = (x, y, checkpoint)
 
-        return x_m, y_m, theta, v, K
+        return x_m, y_m, theta_m, v, K
 
 
     def normalize(self, belief):

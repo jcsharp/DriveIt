@@ -21,6 +21,7 @@ dt = 1.0 / fps
 
 # track metrics
 median_radius = 0.375
+loop_curvature = 1.0 / median_radius
 line_length = 2.0 * median_radius
 loop_median_length = 3.0 / 2.0 * pi * median_radius
 checkpoint_median_length = line_length + loop_median_length
@@ -77,7 +78,7 @@ class DriveItEnv(gym.Env):
             # random position along the track median
             x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
             y_m = self.np_random.uniform(-0.01, 0.01) if self.noisy else 0.0
-            x, y = DriveItEnv.median_to_cartesian(x_m, y_m)
+            x, y, _ = DriveItEnv.median_to_cartesian(x_m, y_m, 0.0)
         
             # keep 10 cm distance between cars
             for j in range(i):
@@ -95,7 +96,7 @@ class DriveItEnv(gym.Env):
         else:
             space = lap_median_length / len(self.cars)
             x_m = wrap(i * space, -checkpoint_median_length, checkpoint_median_length)
-            x, y = DriveItEnv.median_to_cartesian(x_m, 0.0)
+            x, y, _ = DriveItEnv.median_to_cartesian(x_m, 0.0, 0.0)
             theta, K = DriveItEnv.median_properties(x_m)
             steer = K / car.specs.K_max
 
@@ -238,7 +239,7 @@ class DriveItEnv(gym.Env):
             return -loop_median_length + alpha * median_radius, False, False
 
 
-    def cartesian_to_median(x:float, y:float, checkpoint:bool):
+    def cartesian_to_median(x:float, y:float, theta:float, checkpoint:bool):
         '''
         Calculates the median coordinates of the specified position.
         '''
@@ -267,37 +268,43 @@ class DriveItEnv(gym.Env):
             alpha = np.arctan2(dx, dy) + right_angle
             x_m = -loop_median_length + alpha * median_radius
             y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
+            
+        alpha, _ = median_properties(x_m)
+        theta_m = canonical_angle(alpha - theta)
 
-        return x_m, y_m
+        return x_m, y_m, theta_m
 
 
-    def median_to_cartesian(x_m:float, y_m:float):
+    def median_to_cartesian(x_m:float, y_m:float, theta_m:float):
         '''
         Calculates the cartesian coordinates of a specific position relative to the track median.
         '''
+
         # before checkpoint
         if x_m >= 0:
+            alpha = (x_m - line_length) / median_radius
+            theta = canonical_angle(theta_m - alpha)
             # lap straight line
             if x_m < line_length:
-                return x_m - median_radius, y_m
+                return x_m - median_radius, y_m, theta
             # lower-right loop
             else:
-                alpha = (x_m - line_length) / median_radius
                 x = (median_radius + y_m) * sin(alpha) + median_radius
                 y = (median_radius + y_m) * cos(alpha) - median_radius
-                return x, y
+                return x, y, theta
 
         # after checkpoint
         else:
+            alpha = -x_m / median_radius
+            theta = canonical_angle(theta_m - alpha)
             # checkpoint straight line
             if x_m < -loop_median_length:
-                return -y_m, x_m + checkpoint_median_length - median_radius
+                return -y_m, x_m + checkpoint_median_length - median_radius, theta
             # upper-left loop
             else:
-                alpha = -x_m / median_radius
                 x = (y_m - median_radius) * sin(alpha) - median_radius
                 y = (y_m - median_radius) * cos(alpha) + median_radius
-                return x, y
+                return x, y, theta
 
 
     def median_properties(x_m:float):
@@ -312,7 +319,7 @@ class DriveItEnv(gym.Env):
             # lower-right loop
             else:
                 alpha = (x_m - line_length) / median_radius
-                return canonical_angle(-alpha), -1.0 / median_radius
+                return canonical_angle(-alpha), -loop_curvature
 
         # after checkpoint
         else:
@@ -322,7 +329,7 @@ class DriveItEnv(gym.Env):
             # upper-left loop
             else:
                 alpha = -x_m / median_radius
-                return canonical_angle(-alpha), 1.0 / median_radius
+                return canonical_angle(-alpha), loop_curvature
 
 
     def lateral_error(x:float, y:float, x_m:float):
