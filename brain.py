@@ -18,17 +18,17 @@ class Brain:
 
         l1 = Dense(HL_SIZE)
         l2 = Dense(HL_SIZE, activation=relu)
-        #l3 = Dense(HL_SIZE, activation=relu)
+        l3 = Dense(HL_SIZE, activation=relu)
         #lo = Dense(self.actionCnt)
         #q = Sequential([l1, l2, l3, lo])
         
         v1 = Dense(HL_SIZE, activation=relu)
         vo = Dense(1)
-        value = Sequential([l1, l2, v1, vo])
+        value = Sequential([l1, l2, l3, v1, vo])
         
         a1 = Dense(HL_SIZE, activation=relu)
         ao = Dense(self.actionCnt)
-        advantage = Sequential([l1, l2, a1, ao])
+        advantage = Sequential([l1, l2, l3, a1, ao])
 
         q = plus(value, minus(advantage, reduce_mean(advantage, axis=0)))
         
@@ -43,7 +43,7 @@ class Brain:
         #lr = [0.5, 0.2, 0.1, 0.05, 0.02, 0.02]
         #epoch_size = 300000 * 8
         #lr_schedule = learning_rate_schedule(lr, UnitType.sample, epoch_size=epoch_size)
-        lr_schedule = learning_rate_schedule(0.2, UnitType.minibatch)
+        lr_schedule = learning_rate_schedule(0.1, UnitType.minibatch)
         momentum = momentum_schedule(0.9)
 
         learner = momentum_sgd(self.model.parameters, lr_schedule, momentum, \
