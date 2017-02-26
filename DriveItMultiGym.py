@@ -249,28 +249,29 @@ class DriveItEnv(gym.Env):
             if checkpoint:
                 x_m = -checkpoint_median_length + y + median_radius
                 y_m = -x
+                tangent = right_angle
             else:
                 x_m = x + median_radius
                 y_m = y
+                tangent = 0.0
 
         # lower-right loop
         elif x > -median_radius and y < median_radius:
             dx = x - median_radius
             dy = -y - median_radius
-            alpha = np.arctan2(dy, dx) + right_angle
-            x_m = line_length + alpha * median_radius
+            tangent = -np.arctan2(dy, dx) - right_angle
+            x_m = line_length - tangent * median_radius
             y_m = math.sqrt(dx ** 2 + dy ** 2) - median_radius
 
         # upper-left loop
         else:
             dy = y - median_radius
             dx = -x - median_radius
-            alpha = np.arctan2(dx, dy) + right_angle
-            x_m = -loop_median_length + alpha * median_radius
+            tangent = -np.arctan2(dx, dy) - right_angle
+            x_m = -loop_median_length - tangent * median_radius
             y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
             
-        alpha, _ = median_properties(x_m)
-        theta_m = canonical_angle(alpha - theta)
+        theta_m = canonical_angle(tangent - theta)
 
         return x_m, y_m, theta_m
 
