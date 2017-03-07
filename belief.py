@@ -1,6 +1,7 @@
 from DriveItMultiGym import *
 from car import *
 from gym import spaces
+from DriveItCircuit import *
 
 class PositionTracking():
 
@@ -14,7 +15,7 @@ class PositionTracking():
 
     def reset(self, observation):
         d, blue, theta, v, K, thres = observation
-        x, y, _ = DriveItEnv.median_to_cartesian(d, 0.0, 0.0)
+        x, y, _ = median_to_cartesian(d, 0.0, 0.0)
         self.observation = observation
         self.position = x, y, d < 0.0
         return d, 0., theta, v, K
@@ -30,7 +31,7 @@ class PositionTracking():
         K_dot = (K - K_) / dt
         x, y, _, _, _, _ = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
-        x_m, y_m, theta_m = DriveItEnv.cartesian_to_median(x, y, theta, checkpoint)
+        x_m, y_m, theta_m = cartesian_to_median(x, y, theta, checkpoint)
 
         pos_adjusted = False
 
@@ -64,7 +65,7 @@ class PositionTracking():
             #print('y adjusted')
 
         if pos_adjusted:
-            x_m, y_m, theta_m = DriveItEnv.cartesian_to_median(x, y, theta, checkpoint)
+            x_m, y_m, theta_m = cartesian_to_median(x, y, theta, checkpoint)
 
         self.position = (x, y, checkpoint)
 
