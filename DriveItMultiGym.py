@@ -151,8 +151,7 @@ class DriveItEnv(gym.Env):
                 v_hat = v
 
             # check progress along the track
-            x_m, lap, checkpoint = median_distance(x, y, x_m_)
-            y_m = lateral_error(x, y, x_m)
+            x_m, y_m, lap, checkpoint = median_position(x, y, x_m_)
             dx_m = x_m - x_m_
             if lap:
                 d = 0

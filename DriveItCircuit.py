@@ -112,43 +112,13 @@ def median_properties(x_m: float):
             return canonical_angle(-alpha), loop_curvature
 
 
-def lateral_error(x: float, y: float, x_m: float):
-    '''
-    Calculates the lateral distance between the car center and the track median.
-    '''
-
-    # before checkpoint
-    if x_m >= 0:
-        # lap straight line
-        if x_m < line_length:
-            y_m = y
-
-        # lower-right loop
-        else:
-            dx = x - median_radius
-            dy = y + median_radius
-            y_m = math.sqrt(dx ** 2 + dy ** 2) - median_radius
-
-    # after checkpoint
-    else:
-        # checkpoint straight line
-        if x_m < -loop_median_length:
-            y_m = -x
-
-        # upper-left loop
-        else:
-            dx = x + median_radius
-            dy = y - median_radius
-            y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
-
-    return y_m
-
-def median_distance(x: float, y: float, current_mdist: float):
+def median_position(x: float, y: float, current_mdist: float):
     '''
     Calculates the normalized longitudinal position along the track.
 
-    Returns (x_m, lap, checkpoint) where:
-    x_m: is the normalized longitudinal position along the track,
+    Returns (x_m, y_m, lap, checkpoint) where:
+    x_m: is the longitudinal position along the track,
+    y_m: is the lateral distance from the track median,
     lap: is True if the car just passed the lap threshold
     checkpoint: is True if the car just passed the checkpoint threshold
     '''
@@ -159,23 +129,25 @@ def median_distance(x: float, y: float, current_mdist: float):
         # lap straight line
         if current_mdist > - loop_median_length and current_mdist <= loop_median_length:
             lap = current_mdist < 0
-            return x + median_radius, lap, False
+            return x + median_radius, y, lap, False
 
         # checkpoint straight line
         else:
             checkpoint = current_mdist > 0
-            return -checkpoint_median_length + y + median_radius, False, checkpoint
+            return -checkpoint_median_length + y + median_radius, -x, False, checkpoint
 
     # lower-right loop
     if x > -median_radius and y < median_radius:
         dx = x - median_radius
         dy = -y - median_radius
         alpha = np.arctan2(dy, dx) + right_angle
-        return line_length + alpha * median_radius, False, False
+        y_m = math.sqrt(dx ** 2 + dy ** 2) - median_radius
+        return line_length + alpha * median_radius, y_m, False, False
 
     # upper-left loop
     else:
         dy = y - median_radius
         dx = -x - median_radius
         alpha = np.arctan2(dx, dy) + right_angle
-        return -loop_median_length + alpha * median_radius, False, False
+        y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
+        return -loop_median_length + alpha * median_radius, y_m, False, False
