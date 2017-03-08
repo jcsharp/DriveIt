@@ -89,7 +89,7 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
 
 def median_properties(x_m: float):
     '''
-    Calculates the tangent and curvature of a specific positio on the track median.
+    Calculates the tangent and curvature of a specific position on the track median.
     '''
     # before checkpoint
     if x_m >= 0:
