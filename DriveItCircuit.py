@@ -62,28 +62,28 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
 
     # before checkpoint
     if x_m >= 0:
-        alpha = (x_m - line_length) / median_radius
-        theta = canonical_angle(theta_m - alpha)
+        tangent = (x_m - line_length) / median_radius
+        theta = canonical_angle(theta_m - tangent)
         # lap straight line
         if x_m < line_length:
             return x_m - median_radius, y_m, theta
         # lower-right loop
         else:
-            x = (median_radius + y_m) * sin(alpha) + median_radius
-            y = (median_radius + y_m) * cos(alpha) - median_radius
+            x = (median_radius + y_m) * sin(tangent) + median_radius
+            y = (median_radius + y_m) * cos(tangent) - median_radius
             return x, y, theta
 
     # after checkpoint
     else:
-        alpha = -x_m / median_radius
-        theta = canonical_angle(theta_m - alpha)
+        tangent = -x_m / median_radius
+        theta = canonical_angle(theta_m - tangent)
         # checkpoint straight line
         if x_m < -loop_median_length:
             return -y_m, x_m + checkpoint_median_length - median_radius, theta
         # upper-left loop
         else:
-            x = (y_m - median_radius) * sin(alpha) - median_radius
-            y = (y_m - median_radius) * cos(alpha) + median_radius
+            x = (y_m - median_radius) * sin(tangent) - median_radius
+            y = (y_m - median_radius) * cos(tangent) + median_radius
             return x, y, theta
 
 
@@ -98,8 +98,8 @@ def median_properties(x_m: float):
             return 0.0, 0.0
         # lower-right loop
         else:
-            alpha = (x_m - line_length) / median_radius
-            return canonical_angle(-alpha), -loop_curvature
+            tangent = (line_length - x_m) / median_radius
+            return canonical_angle(tangent), -loop_curvature
 
     # after checkpoint
     else:
@@ -108,8 +108,8 @@ def median_properties(x_m: float):
             return right_angle, 0.0
         # upper-left loop
         else:
-            alpha = -x_m / median_radius
-            return canonical_angle(-alpha), loop_curvature
+            tangent = x_m / median_radius
+            return canonical_angle(tangent), loop_curvature
 
 
 def median_position(x: float, y: float, current_mdist: float):
