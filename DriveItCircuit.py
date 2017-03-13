@@ -49,6 +49,7 @@ def cartesian_to_median(x: float, y: float, theta: float, checkpoint: bool):
         tangent = -np.arctan2(dx, dy) - right_angle
         x_m = -loop_median_length - tangent * median_radius
         y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
+        tangent = right_angle - tangent
 
     theta_m = canonical_angle(tangent - theta)
 
