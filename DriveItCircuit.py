@@ -152,3 +152,38 @@ def median_position(x: float, y: float, current_mdist: float):
         alpha = np.arctan2(dx, dy) + right_angle
         y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
         return -loop_median_length + alpha * median_radius, y_m, False, False
+
+
+def curve_error(theta: float, K: float, x_m: float):
+    '''
+    Calculates the heading and curvature offsets with the specified track median position.
+    '''
+
+    # before checkpoint
+    if x_m >= 0:
+        # lap straight line
+        if x_m < line_length:
+            tangent = 0.0
+            curvature = 0.0
+
+        # lower-right loop
+        else:
+            tangent = (line_length - x_m) / median_radius
+            curvature = -loop_curvature
+
+    # after checkpoint
+    else:
+        # checkpoint straight line
+        if x_m < -loop_median_length:
+            tangent = right_angle
+            curvature = 0.0
+
+        # upper-left loop
+        else:
+            tangent = x_m / median_radius
+            curvature = loop_curvature
+
+    theta_m = canonical_angle(tangent - theta)
+    K_err = curvature - K
+
+    return theta_m, K_err
