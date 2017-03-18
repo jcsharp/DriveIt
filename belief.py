@@ -31,7 +31,7 @@ class PositionTracking():
         K_dot = (K - K_) / dt
         x, y, _, _, _, _ = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
-        x_m, y_m, theta_m = cartesian_to_median(x, y, theta, checkpoint)
+        x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
         pos_adjusted = False
 
@@ -65,7 +65,7 @@ class PositionTracking():
             #print('y adjusted')
 
         if pos_adjusted:
-            x_m, y_m, theta_m = cartesian_to_median(x, y, theta, checkpoint)
+            x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
         self.position = (x, y, checkpoint)
 

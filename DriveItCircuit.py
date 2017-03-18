@@ -18,14 +18,14 @@ lap_median_length = 2.0 * checkpoint_median_length
 half_track_width = 0.225
 blue_width = 0.15
 
-def cartesian_to_median(x: float, y: float, theta: float, checkpoint: bool):
+def cartesian_to_median(x: float, y: float, theta: float):
     '''
     Calculates the median coordinates of the specified position.
     '''
     # on central cross
     if abs(x) <= median_radius and abs(y) <= median_radius:
 
-        if checkpoint:
+        if theta < - pi:
             x_m = -checkpoint_median_length + y + median_radius
             y_m = -x
             tangent = - 3.0 * pi / 2.0
@@ -69,24 +69,24 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
             y = y_m
         # lower-right loop
         else:
-            tangent = (x_m - line_length) / median_radius
-            x = (median_radius + y_m) * sin(tangent) + median_radius
-            y = (median_radius + y_m) * cos(tangent) - median_radius
+            tangent = (line_length - x_m) / median_radius
+            x = (median_radius + y_m) * sin(-tangent) + median_radius
+            y = (median_radius + y_m) * cos(-tangent) - median_radius
 
     # after checkpoint
     else:
         # checkpoint straight line
         if x_m < -loop_median_length:
-            tangent = - 3.0 * pi / 2.0
+            tangent = -3.0 * pi / 2.0
             x = -y_m
             y = x_m + checkpoint_median_length - median_radius
         # upper-left loop
         else:
-            tangent = -x_m / median_radius - pi
-            x = (y_m - median_radius) * sin(tangent) - median_radius
-            y = (y_m - median_radius) * cos(tangent) + median_radius
+            tangent = x_m / median_radius
+            x = (y_m - median_radius) * sin(-tangent) - median_radius
+            y = (y_m - median_radius) * cos(-tangent) + median_radius
 
-    theta = theta_m - tangent
+    theta = tangent - theta_m
     return x, y, theta
 
 def median_properties(x_m: float):
