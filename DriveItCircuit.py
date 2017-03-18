@@ -102,7 +102,7 @@ def median_properties(x_m: float):
             return 0.0, 0.0
         # lower-right loop
         else:
-            tangent = (median_radius - x_m) / median_radius
+            tangent = (half_track_width - x_m) / median_radius + 1
             return tangent, -loop_curvature
 
     # after checkpoint
@@ -112,7 +112,7 @@ def median_properties(x_m: float):
             return - 3.0 * pi / 2.0, 0.0
         # upper-left loop
         else:
-            tangent =  (x_m - threshold_offset) / median_radius
+            tangent =  (x_m + threshold_offset) / median_radius
             return tangent, loop_curvature
 
 
