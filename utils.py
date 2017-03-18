@@ -9,6 +9,7 @@ from numpy import cos, sin, pi
 
 
 right_angle = pi / 2.0
+three_quarter_turn = 3.0 * pi / 2.0
 
 def canonical_angle(x):
     '''

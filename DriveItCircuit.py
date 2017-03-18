@@ -6,7 +6,7 @@ Drive-It competition simulation environment map
 import math
 import numpy as np
 from numpy import cos, sin, pi
-from utils import right_angle
+from utils import right_angle, three_quarter_turn
 
 # track metrics
 median_radius = 0.375
@@ -17,7 +17,9 @@ checkpoint_median_length = line_length + loop_median_length
 lap_median_length = 2.0 * checkpoint_median_length
 half_track_width = 0.225
 threshold_offset = median_radius - half_track_width
-threshold_to_curve = median_radius + half_track_width 
+threshold_to_curve = median_radius + half_track_width
+checkpoint_to_lap = checkpoint_median_length - half_track_width
+loop_to_threshold = loop_median_length + threshold_offset
 blue_width = 0.15
 
 def cartesian_to_median(x: float, y: float, theta: float):
@@ -27,14 +29,16 @@ def cartesian_to_median(x: float, y: float, theta: float):
     # on central cross
     if abs(x) <= median_radius and abs(y) <= median_radius:
 
-        if theta < - pi:
-            x_m = -checkpoint_median_length + y + half_track_width
-            y_m = -x
-            tangent = - 3.0 * pi / 2.0
-        else:
+        # lap straight line
+        if theta > - pi:
             x_m = x + half_track_width
             y_m = y
             tangent = 0.0
+        # checkpoint straight line
+        else:
+            x_m = y - checkpoint_to_lap
+            y_m = -x
+            tangent = - three_quarter_turn
 
     # lower-right loop
     elif x > -median_radius and y < median_radius:
@@ -48,8 +52,8 @@ def cartesian_to_median(x: float, y: float, theta: float):
     else:
         dy = y - median_radius
         dx = -x - median_radius
-        tangent = -pi + np.arctan2(dx, dy)
-        x_m = -loop_median_length - threshold_offset + (tangent + 3.0 * pi / 2.0) * median_radius
+        tangent = np.arctan2(dx, dy) - pi
+        x_m = (tangent + three_quarter_turn) * median_radius - loop_to_threshold
         y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
 
     theta_m = tangent - theta
@@ -77,10 +81,10 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
     # after checkpoint
     else:
         # checkpoint straight line
-        if x_m < -loop_median_length - threshold_offset:
-            tangent = -3.0 * pi / 2.0
+        if x_m < -loop_to_threshold:
+            tangent = -three_quarter_turn
             x = -y_m
-            y = x_m + checkpoint_median_length - half_track_width
+            y = x_m + checkpoint_to_lap
         # upper-left loop
         else:
             tangent = (x_m + threshold_offset) / median_radius
@@ -102,14 +106,14 @@ def median_properties(x_m: float):
             return 0.0, 0.0
         # lower-right loop
         else:
-            tangent = (half_track_width - x_m) / median_radius + 1
+            tangent = (threshold_to_curve - x_m) / median_radius
             return tangent, -loop_curvature
 
     # after checkpoint
     else:
         # checkpoint straight line
-        if x_m < -loop_median_length - half_track_width:
-            return - 3.0 * pi / 2.0, 0.0
+        if x_m < -loop_to_threshold:
+            return - three_quarter_turn
         # upper-left loop
         else:
             tangent =  (x_m + threshold_offset) / median_radius
