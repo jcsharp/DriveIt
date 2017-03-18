@@ -118,38 +118,3 @@ def median_properties(x_m: float):
         else:
             tangent =  (x_m + threshold_offset) / median_radius
             return tangent, loop_curvature
-
-
-def curve_error(theta: float, K: float, x_m: float):
-    '''
-    Calculates the heading and curvature offsets with the specified track median position.
-    '''
-
-    # before checkpoint
-    if x_m >= 0:
-        # lap straight line
-        if x_m < line_length:
-            tangent = 0.0
-            curvature = 0.0
-
-        # lower-right loop
-        else:
-            tangent = (line_length - x_m) / median_radius
-            curvature = -loop_curvature
-
-    # after checkpoint
-    else:
-        # checkpoint straight line
-        if x_m < -loop_median_length:
-            tangent = right_angle
-            curvature = 0.0
-
-        # upper-left loop
-        else:
-            tangent = x_m / median_radius
-            curvature = loop_curvature
-
-    theta_m = tangent - theta
-    K_err = curvature - K
-
-    return theta_m, K_err
