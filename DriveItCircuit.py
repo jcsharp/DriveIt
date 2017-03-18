@@ -6,7 +6,7 @@ Drive-It competition simulation environment map
 import math
 import numpy as np
 from numpy import cos, sin, pi
-from utils import right_angle, canonical_angle
+from utils import right_angle
 
 # track metrics
 median_radius = 0.375
@@ -28,7 +28,7 @@ def cartesian_to_median(x: float, y: float, theta: float, checkpoint: bool):
         if checkpoint:
             x_m = -checkpoint_median_length + y + median_radius
             y_m = -x
-            tangent = right_angle
+            tangent = - 3.0 * pi / 2.0
         else:
             x_m = x + median_radius
             y_m = y
@@ -46,12 +46,11 @@ def cartesian_to_median(x: float, y: float, theta: float, checkpoint: bool):
     else:
         dy = y - median_radius
         dx = -x - median_radius
-        tangent = -np.arctan2(dx, dy) - right_angle
-        x_m = -loop_median_length - tangent * median_radius
+        tangent = -pi + np.arctan2(dx, dy)
+        x_m = -loop_median_length + (tangent + 3.0 * pi / 2.0) * median_radius
         y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
-        tangent = right_angle - tangent
 
-    theta_m = canonical_angle(tangent - theta)
+    theta_m = tangent - theta
 
     return x_m, y_m, theta_m
 
@@ -63,30 +62,32 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
 
     # before checkpoint
     if x_m >= 0:
-        tangent = (x_m - line_length) / median_radius
-        theta = canonical_angle(theta_m - tangent)
         # lap straight line
         if x_m < line_length:
-            return x_m - median_radius, y_m, theta
+            tangent = 0.0
+            x = x_m - median_radius
+            y = y_m
         # lower-right loop
         else:
+            tangent = (x_m - line_length) / median_radius
             x = (median_radius + y_m) * sin(tangent) + median_radius
             y = (median_radius + y_m) * cos(tangent) - median_radius
-            return x, y, theta
 
     # after checkpoint
     else:
-        tangent = -x_m / median_radius
-        theta = canonical_angle(theta_m - tangent)
         # checkpoint straight line
         if x_m < -loop_median_length:
-            return -y_m, x_m + checkpoint_median_length - median_radius, theta
+            tangent = - 3.0 * pi / 2.0
+            x = -y_m
+            y = x_m + checkpoint_median_length - median_radius
         # upper-left loop
         else:
+            tangent = -x_m / median_radius - pi
             x = (y_m - median_radius) * sin(tangent) - median_radius
             y = (y_m - median_radius) * cos(tangent) + median_radius
-            return x, y, theta
 
+    theta = theta_m - tangent
+    return x, y, theta
 
 def median_properties(x_m: float):
     '''
@@ -100,17 +101,17 @@ def median_properties(x_m: float):
         # lower-right loop
         else:
             tangent = (line_length - x_m) / median_radius
-            return canonical_angle(tangent), -loop_curvature
+            return tangent, -loop_curvature
 
     # after checkpoint
     else:
         # checkpoint straight line
         if x_m < -loop_median_length:
-            return right_angle, 0.0
+            return - 3.0 * pi / 2.0, 0.0
         # upper-left loop
         else:
             tangent = x_m / median_radius
-            return canonical_angle(tangent), loop_curvature
+            return tangent, loop_curvature
 
 
 def median_position(x: float, y: float, current_mdist: float):
@@ -183,7 +184,7 @@ def curve_error(theta: float, K: float, x_m: float):
             tangent = x_m / median_radius
             curvature = loop_curvature
 
-    theta_m = canonical_angle(tangent - theta)
+    theta_m = tangent - theta
     K_err = curvature - K
 
     return theta_m, K_err

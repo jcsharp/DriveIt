@@ -74,7 +74,6 @@ class Car(RectangularPart):
         s = x, y, theta, v, K, d
         I = rk4(Car._dsdt, s, [0.0, dt], a, K_dot)
         x, y, theta, v, K, d = I[1]
-        theta = canonical_angle(theta)
         return x, y, theta, v, K, d
 
 

@@ -44,8 +44,8 @@ class DriveItEnv(gym.Env):
         
         self.viewer = None
 
-        high = np.array([  checkpoint_median_length, 1.0,  pi, cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ])
-        low  = np.array([ -checkpoint_median_length, 0.0, -pi,                 0.0, -cars[0].specs.K_max, 0.0 ])
+        high = np.array([  checkpoint_median_length, 1.0,  0.0 * pi      , cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ])
+        low  = np.array([ -checkpoint_median_length, 0.0, -3.0 * pi / 2.0,                 0.0, -cars[0].specs.K_max, 0.0 ])
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
 
@@ -142,7 +142,7 @@ class DriveItEnv(gym.Env):
             if self.noisy:
                 # add observation noise
                 bias = max(-0.01, min(0.01, self.np_random.normal(bias, 0.0001)))
-                theta_hat = canonical_angle(theta + bias)
+                theta_hat = theta + bias
                 v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * 0.003)
                 v_hat = v + v_noise
                 d += v_noise * dt
