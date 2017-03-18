@@ -141,7 +141,7 @@ class DriveItEnv(gym.Env):
 
             if self.noisy:
                 # add observation noise
-                bias = max(-0.01, min(0.01, self.np_random.normal(bias, 0.0001)))
+                bias = max(-0.02, min(0.02, self.np_random.normal(bias, 0.0002)))
                 theta_hat = theta + bias
                 v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * 0.003)
                 v_hat = v + v_noise
@@ -151,7 +151,9 @@ class DriveItEnv(gym.Env):
                 v_hat = v
 
             # check progress along the track
-            x_m, y_m, lap, checkpoint = median_position(x, y, x_m_)
+            x_m, y_m, _ = cartesian_to_median(x, y, theta)
+            lap = x_m > 0.0 and x_m_ < 0.0
+            checkpoint = x_m < 0.0 and x_m_ > 0.0
             dx_m = x_m - x_m_
             if lap:
                 d = 0
