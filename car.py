@@ -14,6 +14,8 @@ from gym.envs.classic_control import rendering
 
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
+max_steer_bias = 0.2
+max_throttle_bias = 0.1
 
 
 class CarSpecifications():
@@ -38,7 +40,14 @@ class Car(RectangularPart):
         self.color = color
         self.trail_length = trail_length
         self.dist_sensors = []
+        self.noisy = False
+        self.np_random = None
         self.reset(*args, **kwargs)
+
+
+    def set_noise(self, noisy, np_random):
+        self.noisy = noisy
+        self.np_random = np_random
 
 
     def add_dist_sensor(self, sensor, x, y, theta):
@@ -53,6 +62,12 @@ class Car(RectangularPart):
 
         self.set_position(x, y, theta)
         self.state = (steer, throttle, odometer, v, K)
+        if self.noisy:
+            self.bias = (
+                self.np_random.uniform(-max_steer_bias, max_steer_bias),
+                self.np_random.uniform(-max_throttle_bias, max_throttle_bias))
+        else:
+            self.bias = (0.0, 0.0)
         if self.breadcrumb != None:
             self.breadcrumb.v.clear()
 
@@ -90,31 +105,44 @@ class Car(RectangularPart):
         # initial state
         x_, y_, theta_ = self.get_position()
         steer_, throttle_, d_, v_, K_ = self.state
+        steer_bias, throttle_bias = self.bias
 
         # action
         ds = steer_actions[action] * self.specs.steer_step
         steer = max(-1.0, min(1.0, steer_ + ds))
-        K = self.specs.K_max * steer
-
         dp = throttle_actions[action] * self.specs.throttle_step
         throttle = Car._safe_throttle_move(steer, throttle_, dp)
 
+        # desired state
+        K_hat = self.specs.K_max * steer
         deltav = self.specs.v_max * throttle - v_
         dvmax = self.specs.max_accel * dt
         if abs(deltav) > dvmax:
             deltav = math.copysign(dvmax, deltav)
-        v = v_ + deltav
+        v_hat = v_ + deltav
 
+        # add mechanical noise
+        if self.noisy:
+            if ds != 0.0:
+                steer_bias = self.np_random.uniform(-max_steer_bias, max_steer_bias)
+            if dp != 0.0:
+                throttle_bias = self.np_random.uniform(-max_throttle_bias, max_throttle_bias)
+            K = K_hat + self.specs.K_max * steer_bias
+            v = v_hat + self.specs.v_max * throttle_bias
+        else:
+            K = K_hat
+            v = v_hat
+            
+        # get new state
         a = (v - v_) / dt
         K_dot = (K - K_) / dt
-
-        # get new state
         x, y, theta, _, _, d = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
 
         self.set_position(x, y, theta)
         self.state = (steer, throttle, d, v, K)
+        self.bias = (steer_bias, throttle_bias)
 
-        return x, y, theta, steer, throttle, d, v, K
+        return x, y, theta, steer, throttle, d, v, K_hat
 
 
     def detect_collision(self, cars):

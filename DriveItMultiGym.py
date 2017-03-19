@@ -59,6 +59,8 @@ class DriveItEnv(gym.Env):
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
+        for car in self.cars:
+            car.set_noise(self.noisy, self.np_random)
         return [seed]
 
 
@@ -134,7 +136,7 @@ class DriveItEnv(gym.Env):
             x_m_, bias = self.state[car]
 
             # move the car
-            x, y, theta, steer, throttle, d, v, K = car.step(action, dt)
+            x, y, theta, steer, throttle, d, v, K_hat = car.step(action, dt)
 
             # read sensors
             blue = self._blueness(x, y)
@@ -169,7 +171,7 @@ class DriveItEnv(gym.Env):
                 reward = self.out_reward
                 exits.append(car)
 
-            self.observations[car] = (d, blue, theta_hat, v_hat, K, 1.0 if x_m < 0.0 else 0.0)
+            self.observations[car] = (d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0)
             rewards[car] = reward
             self.state[car] = (x_m, bias)
 
