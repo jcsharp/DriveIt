@@ -35,34 +35,33 @@ class PositionTracking():
 
         pos_adjusted = False
 
-        #if d == -checkpoint_median_length: # checkpoint
-        if checkpoint and not checkpoint_: # checkpoint threshold
-            #checkpoint = True
+        # checkpoint threshold
+        if checkpoint and not checkpoint_:
             if x_m > 0.0:
-                #print('y adjusted chkp %f', (-median_radius - y))
+                #print('y adjusted chkp %f' % (-half_track_width - y))
                 x_m = -checkpoint_median_length
-                y = -median_radius
+                y = -half_track_width
                 pos_adjusted = True
-        #elif d == 0.0: # lap
-        elif checkpoint_ and not checkpoint: # lap threshold
-            #checkpoint = False
+
+        # lap threshold
+        elif checkpoint_ and not checkpoint:
             if x_m < 0.0:
-                #print('x adjusted lap %f', (-median_radius - x))
+                #print('x adjusted lap %f' % (-half_track_width - x))
                 x_m = 0
-                x = -median_radius
+                x = -half_track_width
                 pos_adjusted = True
         
         if checkpoint and x_m > 0.0:
+            #print('x adjusted %f' % (-half_track_width - x))
             x_m = 0.0
-            x = -median_radius
+            x = -half_track_width
             pos_adjusted = True
-            #print('x adjusted')
         
         if x_m > checkpoint_median_length:
+            #print('y adjusted %f' % (-half_track_width - y))
             x_m = checkpoint_median_length
-            y = -median_radius
+            y = -half_track_width
             pos_adjusted = True
-            #print('y adjusted')
 
         if pos_adjusted:
             x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
