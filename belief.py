@@ -51,13 +51,13 @@ class PositionTracking():
                 x = -half_track_width
                 pos_adjusted = True
         
-        if checkpoint and x_m > 0.0:
+        elif checkpoint and x_m > 0.0:
             #print('x adjusted %f' % (-half_track_width - x))
             x_m = 0.0
             x = -half_track_width
             pos_adjusted = True
         
-        if x_m > checkpoint_median_length:
+        elif x_m > checkpoint_median_length:
             #print('y adjusted %f' % (-half_track_width - y))
             x_m = checkpoint_median_length
             y = -half_track_width
