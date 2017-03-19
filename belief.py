@@ -33,12 +33,18 @@ class PositionTracking():
 
         x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
+        def print_adjustment(name, value, new_value, real_value, previous):
+            change = new_value - value
+            desired = real_value - value
+            error = desired - change
+            print('%s adjusted by %f (real %f, err %f)' % (name, change, desired, error))
+
         pos_adjusted = False
 
         # checkpoint threshold
         if checkpoint and not checkpoint_:
             if x_m > 0.0:
-                #print('y adjusted chkp %f' % (-half_track_width - y))
+                #print_adjustment('y>', y, -half_track_width, self.car.get_position()[1], y_)
                 x_m = -checkpoint_median_length
                 y = -half_track_width
                 pos_adjusted = True
@@ -46,19 +52,19 @@ class PositionTracking():
         # lap threshold
         elif checkpoint_ and not checkpoint:
             if x_m < 0.0:
-                #print('x adjusted lap %f' % (-half_track_width - x))
+                #print_adjustment('x>', x, -half_track_width, self.car.get_position()[0], x_)
                 x_m = 0
                 x = -half_track_width
                 pos_adjusted = True
         
         elif checkpoint and x_m > 0.0:
-            #print('x adjusted %f' % (-half_track_width - x))
+            #print_adjustment('x<', x, -half_track_width, self.car.get_position()[0], x_)
             x_m = 0.0
             x = -half_track_width
             pos_adjusted = True
         
         elif x_m > checkpoint_median_length:
-            #print('y adjusted %f' % (-half_track_width - y))
+            #print_adjustment('y<', y, -half_track_width, self.car.get_position()[1], y_)
             x_m = checkpoint_median_length
             y = -half_track_width
             pos_adjusted = True
