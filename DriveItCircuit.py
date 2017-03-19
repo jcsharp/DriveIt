@@ -31,14 +31,18 @@ def cartesian_to_median(x: float, y: float, theta: float):
 
         # lap straight line
         if theta > - pi:
+            tangent = 0.0
             x_m = x + half_track_width
             y_m = y
-            tangent = 0.0
+
         # checkpoint straight line
         else:
-            x_m = y - checkpoint_to_lap
-            y_m = -x
             tangent = - three_quarter_turn
+            y_m = -x
+            if y < -half_track_width:
+                x_m = y + checkpoint_median_length + half_track_width
+            else:
+                x_m = y - checkpoint_to_lap
 
     # lower-right loop
     elif x > -median_radius and y < median_radius:
@@ -66,7 +70,7 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
     Calculates the cartesian coordinates of a specific position relative to the track median.
     '''
     # before checkpoint
-    if x_m >= -threshold_offset:
+    if x_m >= -threshold_offset and x_m < checkpoint_median_length - threshold_offset:
         # lap straight line
         if x_m < threshold_to_curve:
             tangent = 0.0
@@ -80,8 +84,13 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
 
     # after checkpoint
     else:
-        # checkpoint straight line
-        if x_m < -loop_to_threshold:
+        # before checkpoint straight line
+        if x_m > 0:
+            tangent = -three_quarter_turn
+            x = -y_m
+            y = x_m - checkpoint_median_length - half_track_width
+        # after checkpoint straight line
+        elif x_m < -loop_to_threshold:
             tangent = -three_quarter_turn
             x = -y_m
             y = x_m + checkpoint_to_lap
@@ -100,9 +109,9 @@ def median_properties(x_m: float):
     Calculates the tangent and curvature of a specific position on the track median.
     '''
     # before checkpoint
-    if x_m >= -threshold_offset:
+    if x_m >= -threshold_offset and x_m < checkpoint_median_length - threshold_offset:
         # lap straight line
-        if x_m < median_radius:
+        if x_m < threshold_to_curve:
             return 0.0, 0.0
         # lower-right loop
         else:
@@ -112,8 +121,8 @@ def median_properties(x_m: float):
     # after checkpoint
     else:
         # checkpoint straight line
-        if x_m < -loop_to_threshold:
-            return - three_quarter_turn
+        if x_m > 0 or x_m < -loop_to_threshold:
+            return - three_quarter_turn, 0.0
         # upper-left loop
         else:
             tangent =  (x_m + threshold_offset) / median_radius
