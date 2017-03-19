@@ -18,7 +18,9 @@ lap_median_length = 2.0 * checkpoint_median_length
 half_track_width = 0.225
 threshold_offset = median_radius - half_track_width
 threshold_to_curve = median_radius + half_track_width
+threshold_to_curve_end = checkpoint_median_length - threshold_offset
 checkpoint_to_lap = checkpoint_median_length - half_track_width
+checkpoint_offset = checkpoint_median_length + half_track_width
 loop_to_threshold = loop_median_length + threshold_offset
 blue_width = 0.15
 
@@ -40,7 +42,7 @@ def cartesian_to_median(x: float, y: float, theta: float):
             tangent = - three_quarter_turn
             y_m = -x
             if y < -half_track_width:
-                x_m = y + checkpoint_median_length + half_track_width
+                x_m = y + checkpoint_offset
             else:
                 x_m = y - checkpoint_to_lap
 
@@ -70,7 +72,7 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
     Calculates the cartesian coordinates of a specific position relative to the track median.
     '''
     # before checkpoint
-    if x_m >= -threshold_offset and x_m < checkpoint_median_length - threshold_offset:
+    if x_m >= -threshold_offset and x_m < threshold_to_curve_end:
         # lap straight line
         if x_m < threshold_to_curve:
             tangent = 0.0
@@ -88,7 +90,7 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
         if x_m > 0:
             tangent = -three_quarter_turn
             x = -y_m
-            y = x_m - checkpoint_median_length - half_track_width
+            y = x_m - checkpoint_offset
         # after checkpoint straight line
         elif x_m < -loop_to_threshold:
             tangent = -three_quarter_turn
@@ -109,7 +111,7 @@ def median_properties(x_m: float):
     Calculates the tangent and curvature of a specific position on the track median.
     '''
     # before checkpoint
-    if x_m >= -threshold_offset and x_m < checkpoint_median_length - threshold_offset:
+    if x_m >= -threshold_offset and x_m < threshold_to_curve_end:
         # lap straight line
         if x_m < threshold_to_curve:
             return 0.0, 0.0
