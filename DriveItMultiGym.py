@@ -23,6 +23,10 @@ dt = 1.0 / fps
 wrong_way_min = 0.275
 wrong_way_max = median_radius
 
+max_compass_bias = 0.02
+compass_deviation = 0.0002
+velocity_deviation = 0.003
+
 class DriveItEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
@@ -116,8 +120,13 @@ class DriveItEnv(gym.Env):
         for i in range(len(self.cars)):
             x, y, theta, steer, throttle, odometer, v, K = self._reset_car(i, random_position)
             car = self.cars[i]
+            if self.noisy:
+                bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
+                theta -= bias
+            else:
+                bias = 0.0
             self.observations[car] = np.array((odometer, 0.0, theta, v, K, 1.0 if odometer < 0.0 else 0.0))
-            self.state[car] = (odometer, 0.0)
+            self.state[car] = (odometer, bias)
         
         return self.observations
 
@@ -143,9 +152,9 @@ class DriveItEnv(gym.Env):
 
             if self.noisy:
                 # add observation noise
-                bias = max(-0.02, min(0.02, self.np_random.normal(bias, 0.0002)))
+                bias = max(-max_compass_bias, min(max_compass_bias, self.np_random.normal(bias, compass_deviation)))
                 theta_hat = theta + bias
-                v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * 0.003)
+                v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * velocity_deviation)
                 v_hat = v + v_noise
                 d += v_noise * dt
             else:
