@@ -84,12 +84,12 @@ class Agent:
         for i in range(batchLen):
             s, a, r, s_, q = batch[i]
                        
-            t = p[i,0]
+            t = p[0][i]
             if s_ is None:
                 ta = r
             else:
-                #ta = r + GAMMA * pTarget_[i,0][ np.argmax(p_[i,0]) ]  # double DQN
-                ta = max(q, r + GAMMA * pTarget_[i,0][ np.argmax(p_[i,0]) ]) # Q-min DDQN
+                #ta = r + GAMMA * pTarget_[0][i][ np.argmax(p_[0][i]) ]  # double DQN
+                ta = max(q, r + GAMMA * pTarget_[0][i][ np.argmax(p_[0][i]) ]) # Q-min DDQN
 
             err[i] = np.abs(t[a] - ta)
             t[a] = ta

@@ -1,7 +1,7 @@
 import numpy as np
 from cntk import *
-from cntk.models import Sequential
 from cntk.layers import *
+from cntk.ops.sequence import *
 
 HL_SIZE = 128
 
@@ -61,7 +61,7 @@ class Brain:
             return self.model.eval(s)
 
     def predictOne(self, s, target=False):
-        return self.predict(s.reshape(1, self.stateCnt), target=target).flatten()
+        return self.predict(s.reshape(1, self.stateCnt), target=target)[0]
 
     def updateTargetModel(self):
         self.model_ = self.model.clone(method='clone')
