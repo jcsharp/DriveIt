@@ -67,6 +67,7 @@ class Agent:
         self.replay(int(n * BATCH_SIZE_PER_SAMPLE))
         
     def _getTargets(self, batch):
+        batchLen = len(batch)
         no_state = np.zeros(self.stateCnt)
         states = np.array([ o[0] for o in batch ], dtype=np.float32)
         states_ = np.array([ (no_state if o[3] is None else o[3]) \
@@ -76,13 +77,13 @@ class Agent:
         p_ = self.brain.predict(states_, target = False)
         pTarget_ = self.brain.predict(states_, target = True)
         
-        x = np.zeros((len(batch), self.stateCnt)).astype(np.float32)
-        y = np.zeros((len(batch), self.actionCnt)).astype(np.float32)
-        err = np.zeros(len(batch))
+        x = np.zeros((batchLen, self.stateCnt)).astype(np.float32)
+        y = np.zeros((batchLen, self.actionCnt)).astype(np.float32)
+        err = np.zeros(batchLen)
 
-        for i in range(len(batch)):
+        for i in range(batchLen):
             s, a, r, s_, q = batch[i]
-           
+                       
             t = p[i,0]
             if s_ is None:
                 ta = r
