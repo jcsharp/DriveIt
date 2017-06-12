@@ -23,7 +23,7 @@ class DistanceSensor(Part):
         return DistanceSensor(1., 0.03, 20 / 360. * pi, 0.01)
 
     def short_range():
-        return DistanceSensor(0.25, 0.01, 25 / 360. * pi, 0.001)
+        return DistanceSensor(0.2, 0.01, 25 / 360. * pi, 0.001)
 
 
     def read(self, parts):
