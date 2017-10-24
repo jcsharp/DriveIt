@@ -39,6 +39,7 @@ class Car(RectangularPart):
         car.add_dist_sensor(DistanceSensor(1., 0.03, pi / 4, 0.01), 0.06, 0., 0)
         return car
 
+
     def HighPerf(color=Color.black, v_max=2.5):
         car = Car(color, CarSpecifications(v_max))
         car.add_dist_sensor(DistanceSensor.long_range(), 0.115, 0., 0.)
@@ -47,6 +48,7 @@ class Car(RectangularPart):
         car.add_dist_sensor(DistanceSensor.short_range(), 0., 0.055, pi / 4.)
         car.add_dist_sensor(DistanceSensor.short_range(), 0., -0.055, -pi / 4.)
         return car
+    
     
     breadcrumb = None
 
@@ -90,6 +92,11 @@ class Car(RectangularPart):
         return x, y, theta, steer, throttle, odometer, v, K
 
 
+    def reset_odometer(self, value):
+        steer, throttle, d, v, K = self.state
+        self.state = (steer, throttle, value, v, K)
+
+
     def _dsdt(s, t, a, K_dot):
         '''
         Computes derivatives of state parameters.
@@ -106,11 +113,6 @@ class Car(RectangularPart):
         I = rk4(Car._dsdt, s, [0.0, dt], a, K_dot)
         x, y, theta, v, K, d = I[1]
         return x, y, theta, v, K, d
-
-
-    def reset_odometer(self, value):
-        steer, throttle, d, v, K = self.state
-        self.state = (steer, throttle, value, v, K)
 
 
     def step(self, action, dt):
