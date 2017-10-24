@@ -9,6 +9,7 @@ import numpy as np
 from numpy import cos, sin, pi
 from utils import *
 from part import *
+from sensors import *
 from gym.envs.classic_control import rendering
 
 
@@ -32,6 +33,20 @@ class CarSpecifications():
 
 
 class Car(RectangularPart):
+
+    def Simple(color=Color.black, v_max=1.0):
+        car = Car(color, CarSpecifications(v_max))
+        car.add_dist_sensor(DistanceSensor(1., 0.03, pi / 4, 0.01), 0.06, 0., 0)
+        return car
+
+    def HighPerf(color=Color.black, v_max=2.5):
+        car = Car(color, CarSpecifications(v_max))
+        car.add_dist_sensor(DistanceSensor.long_range(), 0.115, 0., 0.)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, 0.02, pi / 6.)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, -0.02, -pi / 6.)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0., 0.055, pi / 4.)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0., -0.055, -pi / 4.)
+        return car
     
     breadcrumb = None
 
