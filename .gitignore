@@ -1,7 +1,5 @@
 .vs
 
-*.png
-
 # CNTK models
 *.mod
 
