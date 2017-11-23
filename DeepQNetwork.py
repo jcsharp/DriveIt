@@ -17,6 +17,7 @@ from cntk.logging import TensorBoardProgressWriter
 from cntk.ops import abs, argmax, element_select, less, relu, reduce_max, reduce_sum, square
 from cntk.ops.functions import CloneMethod, Function
 from cntk.train import Trainer
+from datetime import datetime
 
 
 class ReplayMemory(object):
@@ -283,9 +284,9 @@ class DeepQAgent(object):
                 # Convolution2D((8, 8), 16, strides=4),
                 # Convolution2D((4, 4), 32, strides=2),
                 # Convolution2D((3, 3), 32, strides=1),
-                Dense(32, init=he_uniform(scale=1)),
-                Dense(32, init=he_uniform(scale=1)),
-                Dense(nb_actions, activation=None, init=he_uniform(scale=1))
+                Dense(32, init=he_uniform()),
+                Dense(32, init=he_uniform()),
+                Dense(nb_actions, activation=None, init=he_uniform())
             ])
         self._action_value_net.update_signature(Tensor[input_shape])
 
@@ -324,7 +325,8 @@ class DeepQAgent(object):
         l_sgd = adam(self._action_value_net.parameters, lr_schedule,
                      momentum=m_schedule, variance_momentum=vm_schedule)
 
-        self._metrics_writer = TensorBoardProgressWriter(freq=1, log_dir='metrics', model=criterion) if monitor else None
+        log_dir = 'metrics/' + datetime.now().strftime('%Y%m%d%H%M%S')
+        self._metrics_writer = TensorBoardProgressWriter(freq=1, log_dir=log_dir, model=criterion) if monitor else None
         self._learner = l_sgd
         self._trainer = Trainer(criterion, (criterion, None), l_sgd, self._metrics_writer)
 
