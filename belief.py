@@ -3,6 +3,25 @@ from car import *
 from gym import spaces
 from DriveItCircuit import *
 
+
+
+class BeliefDriveItEnv(DriveItEnv):
+
+    def __init__(self, car=Car(), agents=list(), time_limit=10, gamma=0.99, noisy=True):
+        self.tracker = PositionTracking(car)
+        super().__init__(car, agents, time_limit, gamma, noisy)
+        self.observation_space = self.tracker.observation_space
+
+    def _reset(self, random_position=True):
+        obs = super()._reset(random_position)
+        return self.tracker.reset(obs)
+
+    def _step(self, action):
+        obs, reward, done, info = super()._step(action)
+        b = self.tracker.update(obs, self.dt)
+        return b, reward, done, info
+
+
 class PositionTracking():
 
     def __init__(self, car=Car()):
