@@ -7,9 +7,9 @@ from DriveItCircuit import *
 
 class BeliefDriveItEnv(DriveItEnv):
 
-    def __init__(self, car=Car(), agents=list(), time_limit=10, gamma=0.99, noisy=True):
+    def __init__(self, car=Car(), agents=list(), time_limit=10, noisy=True):
         self.tracker = PositionTracking(car)
-        super().__init__(car, agents, time_limit, gamma, noisy)
+        super().__init__(car, agents, time_limit, noisy)
         self.observation_space = self.tracker.observation_space
 
     def _reset(self, random_position=True):

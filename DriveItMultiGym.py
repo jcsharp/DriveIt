@@ -22,6 +22,8 @@ dt = 1.0 / fps
 
 wrong_way_min = 0.275
 wrong_way_max = median_radius
+out_margin = blue_width
+out_reward = -lap_median_length
 
 max_compass_bias = 0.02
 compass_deviation = 0.0002
@@ -35,17 +37,13 @@ class DriveItEnvMulti(gym.Env):
     }
 
 
-    def __init__(self, cars=(Car()), time_limit=10, gamma=0.99, noisy=True):
+    def __init__(self, cars=(Car()), time_limit=10, noisy=True):
         
         self.cars = cars
         self.time_limit = time_limit
         self.noisy = noisy
         self.car_num = len(cars)
         self.dt = dt
-
-        # corresponds to the maximum discounted reward over a median lap
-        max_reward = cars[0].specs.v_max * dt / (1 - gamma)
-        self.out_reward = -max_reward
         
         self.viewer = None
 
@@ -169,7 +167,7 @@ class DriveItEnvMulti(gym.Env):
             checkpoint = x_m < 0.0 and x_m_ > 0.0
             dx_m = x_m - x_m_
             if lap:
-                d = 0
+                d = 0.0
                 car.reset_odometer(d)
             if checkpoint:
                 dx_m += lap_median_length
@@ -178,9 +176,12 @@ class DriveItEnvMulti(gym.Env):
 
             # reward progress
             reward = dx_m
-            if (abs(y_m) > half_track_width) or (blue > blue_threshold):
-                reward = self.out_reward
+            yout = abs(y_m) - half_track_width 
+            if (yout > out_margin):
+                reward = out_reward
                 exits.append(car)
+            elif (yout > 0.0):
+                reward = 0.0
 
             self.observations[car] = (d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0)
             rewards[car] = reward
@@ -196,9 +197,9 @@ class DriveItEnvMulti(gym.Env):
                 car2 = car1.detect_collision(self.cars)
                 if car2 is not None:
                     if self.state[car1][0] < 0 and self.state[car2][0] > 0:
-                        rewards[car2] = self.out_reward
+                        rewards[car2] = out_reward
                     else:
-                        rewards[car1] = self.out_reward
+                        rewards[car1] = out_reward
                     done = True
 
 
