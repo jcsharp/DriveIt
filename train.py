@@ -16,7 +16,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     max_steps = args.epoch * args.steps
 
-    env = BeliefDriveItEnv()
+    env = BeliefDriveItEnv(time_limit=180)
     agent = DeepQAgent(env.observation_space.shape, env.action_space.n, \
         gamma=args.gamma, explorer=ExpEpsilonAnnealingExplorer(1, 0.1, max_steps), monitor=args.plot)
 
