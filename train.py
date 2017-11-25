@@ -12,7 +12,6 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epoch', default=100, type=int, help='Number of epochs to run')
     parser.add_argument('-s', '--steps', default=10000, type=int, help='Number of steps per epoch')
     parser.add_argument('-p', '--plot', action='store_true', default=False, help='Flag for enabling Tensorboard')
-    #parser.add_argument('env', default='Pong-v3', type=str, metavar='N', nargs='?', help='Gym Atari environment to run')
 
     args = parser.parse_args()
 
