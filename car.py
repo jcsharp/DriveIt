@@ -146,7 +146,7 @@ class Car(RectangularPart):
             if dp != 0.0:
                 throttle_bias = self.np_random.uniform(-max_throttle_bias, max_throttle_bias)
             K = K_hat + self.specs.K_max * steer_bias
-            v = v_hat + self.specs.v_max * throttle_bias
+            v = v_hat * (1 + throttle_bias)
         else:
             K = K_hat
             v = v_hat
