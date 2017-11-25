@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--plot', action='store_true', default=False, help='Flag for enabling Tensorboard')
 
     args = parser.parse_args()
+    max_steps = args.epoch * args.steps
 
     env = BeliefDriveItEnv()
-    agent = DeepQAgent((4,) + env.observation_space.shape, env.action_space.n, \
-        monitor=args.plot, train_after=1000, gamma=args.gamma)
+    agent = DeepQAgent(env.observation_space.shape, env.action_space.n, \
+        gamma=args.gamma, explorer=LinearEpsilonAnnealingExplorer(1, 0.1, max_steps), monitor=args.plot)
 
     current_step = 0
     action = 0
-    max_steps = args.epoch * args.steps
     current_state = env.reset()
 
     while current_step < max_steps:
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         # Clipping reward for training stability
         reward = np.clip(reward, -1, 1)
 
-        agent.observe(current_state, action, reward, done)
+        agent.observe(current_state, action, reward, new_state, done)
         agent.train()
 
         current_state = new_state
