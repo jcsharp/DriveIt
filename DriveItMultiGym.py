@@ -286,14 +286,14 @@ class DriveItEnvMulti(gym.Env):
 
 class DriveItEnv(DriveItEnvMulti):
 
-    def __init__(self, car=Car(), agents=list(), time_limit=10, gamma=0.99, noisy=True):
+    def __init__(self, car=Car(), agents=list(), time_limit=10, noisy=True):
         self.car = car
         self.agents = agents
         cars = list()
         cars.append(car)
         for agent in agents:
             cars.append(agent.car)
-        super().__init__(cars, time_limit, gamma, noisy)
+        super().__init__(cars, time_limit, noisy)
 
     def _reset(self, random_position=True):
         obs = super()._reset(random_position)
