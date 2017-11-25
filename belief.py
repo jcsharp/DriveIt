@@ -14,12 +14,12 @@ class BeliefDriveItEnv(DriveItEnv):
 
     def _reset(self, random_position=True):
         obs = super()._reset(random_position)
-        return self.tracker.reset(obs)
+        return self.tracker.normalize(self.tracker.reset(obs))
 
     def _step(self, action):
         obs, reward, done, info = super()._step(action)
         b = self.tracker.update(obs, self.dt)
-        return b, reward, done, info
+        return self.tracker.normalize(b), reward, done, info
 
 
 class PositionTracking():
