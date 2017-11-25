@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    env = BeliefDriveItEnv(gamma=args.gamma)
+    env = BeliefDriveItEnv()
     agent = DeepQAgent((4,) + env.observation_space.shape, env.action_space.n, \
         monitor=args.plot, train_after=1000, gamma=args.gamma)
 
