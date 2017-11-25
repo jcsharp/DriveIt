@@ -118,7 +118,7 @@ class DriveItEnvMulti(gym.Env):
         self.state = {}
 
         for i in range(len(self.cars)):
-            x, y, theta, steer, throttle, odometer, v, K = self._reset_car(i, random_position)
+            _, _, theta, _, _, odometer, v, K = self._reset_car(i, random_position)
             car = self.cars[i]
             if self.noisy:
                 bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
@@ -145,7 +145,7 @@ class DriveItEnvMulti(gym.Env):
             x_m_, bias = self.state[car]
 
             # move the car
-            x, y, theta, steer, throttle, d, v, K_hat = car.step(action, dt)
+            x, y, theta, _, _, d, v, K_hat = car.step(action, dt)
 
             # read sensors
             blue = self._blueness(x, y)
@@ -203,9 +203,7 @@ class DriveItEnvMulti(gym.Env):
                     done = True
 
 
-        return self.observations, rewards, done, { \
-            'done': 'complete' if timeout else 'out' 
-        }
+        return self.observations, rewards, done, { 'done': 'complete' if timeout else 'out' }
 
 
     def _render(self, mode='human', close=False):
@@ -298,18 +296,18 @@ class DriveItEnv(DriveItEnvMulti):
     def _reset(self, random_position=True):
         obs = super()._reset(random_position)
         for i in range(1, self.car_num):
-            agent[i-1].reset(obs[self.cars[i]])
+            self.agents[i-1].reset(obs[self.cars[i]])
         return obs[self.car]
 
     def _step(self, action):
         actions = {}
         actions[self.car] = action
         for i in range(1, self.car_num):
-            actions[self.cars[i]] = agent.act()
+            actions[self.cars[i]] = self.agents.act()
 
         obs, rewards, done, info = super()._step(actions)
         
         for i in range(1, self.car_num):
-            agent[i].observe(obs[self.cars[i]], rewards[self.cars[i]], done, info)
+            self.agents[i].observe(obs[self.cars[i]], rewards[self.cars[i]], done, info)
 
         return obs[self.car], rewards[self.car], done, info

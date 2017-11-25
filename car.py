@@ -211,7 +211,7 @@ class Car(RectangularPart):
         self.steering_wheel = SteeringWheel()
         self.add_part(self.steering_wheel, 0.065, 0.0, 0.0)
         self.breadcrumb = rendering.PolyLine([], close=False)
-        self.breadcrumb._color.vec4 = Color.set_alpha(self.color, 0.5);
+        self.breadcrumb._color.vec4 = Color.set_alpha(self.color, 0.5)
         viewer.add_geom(self.breadcrumb)
 
 
