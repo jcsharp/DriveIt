@@ -110,7 +110,7 @@ class DriveItEnv(gym.Env):
         self.time = 0.0
         self.state = (x, y, theta, steer, throttle, x_m, y_m)
         self.belief = (x_m, y_m, theta)
-        observation = np.array((x_m / checkpoint_median_length, y_m / half_track_width, theta / pi, steer, throttle))
+        observation = np.array((x_m, y_m, theta, throttle * v_max, steer * K_max))
         return observation
 
 
@@ -204,7 +204,7 @@ class DriveItEnv(gym.Env):
 
         self.state = (x, y, theta, steer, throttle, x_m, y_m)
         self.belief = (x_m_hat, y_m_hat, theta_hat)
-        observation = np.array((x_m_hat / checkpoint_median_length, y_m_hat / half_track_width, theta_hat / pi, steer, throttle))
+        observation = np.array((x_m_hat, y_m_hat, theta_hat, throttle * v_max, steer * K_max))
         return observation, reward, done, { \
             'checkpoint': checkpoint,
             'lap': lap,
