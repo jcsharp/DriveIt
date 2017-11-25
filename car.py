@@ -12,8 +12,8 @@ from part import *
 from gym.envs.classic_control import rendering
 
 
-steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
-throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
+steer_actions =    [ 0.,  1., -1.]
+throttle_actions = [ 0.,  1., -1.]
 
 
 class CarSpecifications():
@@ -93,11 +93,13 @@ class Car(RectangularPart):
         steer_, throttle_, d_, v_, K_ = self.state
 
         # action
-        ds = steer_actions[action] * self.specs.steer_step
+        steer_action, throttle_action = action
+
+        ds = steer_actions[steer_action] * self.specs.steer_step
         steer = max(-1.0, min(1.0, steer_ + ds))
         K = self.specs.K_max * steer
 
-        dp = throttle_actions[action] * self.specs.throttle_step
+        dp = throttle_actions[throttle_action] * self.specs.throttle_step
         throttle = Car._safe_throttle_move(steer, throttle_, dp)
 
         deltav = self.specs.v_max * throttle - v_

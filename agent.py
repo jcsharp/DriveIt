@@ -17,21 +17,26 @@ class Agent:
     steps = 0
     episodes = 0
     epsilon = MAX_EPSILON
+    #epsilon_effective = MAX_EPSILON
     lastTargetUpdateStep = 0
     episode = []
 
-    def __init__(self, stateCnt, actionCnt):
-        self.stateCnt = stateCnt
-        self.actionCnt = actionCnt
+    def __init__(self, state_count, action_space):
+        self.state_count = state_count
+        self.action_space = action_space
         
-        self.brain = Brain(stateCnt, actionCnt)
+        self.brain = Brain(state_count, action_space.high + 1)
         self.memory = SumTreeMemory(MEMORY_CAPACITY)
         
-    def act(self, s):
-        if random.random() < self.epsilon:
-            return random.randint(0, self.actionCnt - 1)
+    def act(self, s, test=False):
+        r = random.random()
+        if not test and r < self.epsilon:
+            if r > 0.33:
+                return (0, 0) # favor no-op at the beginning
+            else:
+                return self.action_space.sample()
         else:
-            return np.argmax(self.brain.predictOne(s))
+            return np.argmax(self.brain.predictOne(s), 0)
 
     def observe(self, sample):  # in (s, a, r, s_) format
         self.episode.insert(0, sample)
@@ -62,33 +67,35 @@ class Agent:
         # slowly decrease epsilon based on our eperience
         self.epsilon = MIN_EPSILON \
         + (MAX_EPSILON - MIN_EPSILON) * math.exp(-LAMBDA * self.steps)
+        #self.epsilon_effective = np.random.uniform(0.0, self.epsilon)
         
         # memory replay based on the number of steps in the episode
         self.replay(int(n * BATCH_SIZE_PER_SAMPLE))
         
     def _getTargets(self, batch):
-        no_state = np.zeros(self.stateCnt)
+        no_state = np.zeros(self.state_count)
         states = np.array([ o[0] for o in batch ], dtype=np.float32)
         states_ = np.array([ (no_state if o[3] is None else o[3]) \
                             for o in batch ], dtype=np.float32)
 
-        p = self.brain.predict(states)
+        p = self.brain.predict(states, target = False)
         p_ = self.brain.predict(states_, target = False)
-        pTarget_ = self.brain.predict(states_, target = True)
+        p_target_ = self.brain.predict(states_, target = True)
         
-        x = np.zeros((len(batch), self.stateCnt)).astype(np.float32)
-        y = np.zeros((len(batch), self.actionCnt)).astype(np.float32)
+        x = np.zeros((len(batch), self.state_count)).astype(np.float32)
+        y = np.zeros_like(p) #(len(batch), self.action_space)).astype(np.float32)
         err = np.zeros(len(batch))
 
         for i in range(len(batch)):
             s, a, r, s_, q = batch[i]
            
             t = p[i,0]
+            print(t)
             if s_ is None:
                 ta = r
             else:
                 #ta = r + GAMMA * pTarget_[i,0][ np.argmax(p_[i,0]) ]  # double DQN
-                ta = max(q, r + GAMMA * pTarget_[i,0][ np.argmax(p_[i,0]) ]) # Q-min DDQN
+                ta = max(q, r + GAMMA * p_target_[i,0][ np.argmax(p_[i,0]) ]) # Q-min DDQN
 
             err[i] = np.abs(t[a] - ta)
             t[a] = ta

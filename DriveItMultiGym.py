@@ -48,13 +48,13 @@ class DriveItEnv(gym.Env):
 
         # corresponds to the maximum discounted reward over a median lap
         max_reward = cars[0].specs.v_max * dt / (1 - gamma)
-        self.out_reward = -max_reward
+        self.out_reward = 0.0 #-max_reward
         
         self.viewer = None
 
         high = np.array([  checkpoint_median_length, 1.0,  pi, cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ])
         low  = np.array([ -checkpoint_median_length, 0.0, -pi,                 0.0, -cars[0].specs.K_max, 0.0 ])
-        self.action_space = spaces.Discrete(len(steer_actions))
+        self.action_space = spaces.MultiDiscrete([[0,2],[0,2]])
         self.observation_space = spaces.Box(low, high)
 
         fname = path.join(path.dirname(__file__), "track.png")
@@ -269,7 +269,7 @@ class DriveItEnv(gym.Env):
             x_m = -loop_median_length + alpha * median_radius
             y_m = median_radius - math.sqrt(dx ** 2 + dy ** 2)
             
-        alpha, _ = median_properties(x_m)
+        alpha, _ = DriveItEnv.median_properties(x_m)
         theta_m = canonical_angle(alpha - theta)
 
         return x_m, y_m, theta_m

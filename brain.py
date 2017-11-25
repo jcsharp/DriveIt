@@ -6,15 +6,15 @@ from cntk.layers import *
 HL_SIZE = 128
 
 class Brain:
-    def __init__(self, stateCnt, actionCnt):
-        self.stateCnt = stateCnt
-        self.actionCnt = actionCnt
+    def __init__(self, state_shape, action_shape):
+        self.state_shape = state_shape
+        self.action_shape = action_shape
         self._createModel()
         self.updateTargetModel()
         
     def _createModel(self):
-        observation = input_variable(self.stateCnt, np.float32, name="s")
-        q_target = input_variable(self.actionCnt, np.float32, name="q")
+        observation = input_variable(self.state_shape, np.float32, name="s")
+        q_target = input_variable(self.action_shape, np.float32, name="q")
 
         l1 = Dense(HL_SIZE)
         l2 = Dense(HL_SIZE, activation=relu)
@@ -27,7 +27,7 @@ class Brain:
         value = Sequential([l1, l2, l3, v1, vo])
         
         a1 = Dense(HL_SIZE, activation=relu)
-        ao = Dense(self.actionCnt)
+        ao = Dense(self.action_shape)
         advantage = Sequential([l1, l2, l3, a1, ao])
 
         q = plus(value, minus(advantage, reduce_mean(advantage, axis=0)))
@@ -61,7 +61,7 @@ class Brain:
             return self.model.eval(s)
 
     def predictOne(self, s, target=False):
-        return self.predict(s.reshape(1, self.stateCnt), target=target).flatten()
+        return self.predict(s.reshape(1, self.state_shape), target=target).flatten()
 
     def updateTargetModel(self):
         self.model_ = self.model.clone(method='clone')
