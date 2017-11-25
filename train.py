@@ -3,7 +3,7 @@ from car import Car
 from belief import BeliefDriveItEnv
 from DeepQNetwork import *
 from argparse import ArgumentParser
-
+from explorer import ExpEpsilonAnnealingExplorer
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     env = BeliefDriveItEnv()
     agent = DeepQAgent(env.observation_space.shape, env.action_space.n, \
-        gamma=args.gamma, explorer=LinearEpsilonAnnealingExplorer(1, 0.1, max_steps), monitor=args.plot)
+        gamma=args.gamma, explorer=ExpEpsilonAnnealingExplorer(1, 0.1, max_steps), monitor=args.plot)
 
     current_step = 0
     action = 0

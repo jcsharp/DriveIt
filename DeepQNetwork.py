@@ -17,57 +17,7 @@ from cntk.ops.functions import CloneMethod, Function
 from cntk.train import Trainer
 from datetime import datetime
 from ReplayMemory import ReplayMemory
-
-
-class LinearEpsilonAnnealingExplorer(object):
-    """
-    Exploration policy using Linear Epsilon Greedy
-
-    Attributes:
-        start (float): start value
-        end (float): end value
-        steps (int): number of steps between start and end
-    """
-
-    def __init__(self, start, end, steps):
-        self._start = start
-        self._stop = end
-        self._steps = steps
-
-        self._step_size = (end - start) / steps
-
-    def __call__(self, num_actions):
-        """
-        Select a random action out of `num_actions` possibilities.
-
-        Attributes:
-            num_actions (int): Number of actions available
-        """
-        return np.random.choice(num_actions)
-
-    def _epsilon(self, step):
-        """ Compute the epsilon parameter according to the specified step
-
-        Attributes:
-            step (int)
-        """
-        if step < 0:
-            return self._start
-        elif step > self._steps:
-            return self._stop
-        else:
-            return self._step_size * step + self._start
-
-    def is_exploring(self, step):
-        """ Commodity method indicating if the agent should explore
-
-        Attributes:
-            step (int) : Current step
-
-        Returns:
-             bool : True if exploring, False otherwise
-        """
-        return np.random.rand() < self._epsilon(step)
+from explorer import ExpEpsilonAnnealingExplorer
 
 
 def huber_loss(y, y_hat, delta):
@@ -97,14 +47,13 @@ def huber_loss(y, y_hat, delta):
 
     return reduce_sum(loss_per_sample, name='loss')
 
-
 class DeepQAgent(object):
     """
     Implementation of Deep Q Neural Network agent like in:
         Nature 518. "Human-level control through deep reinforcement learning" (Mnih & al. 2015)
     """
     def __init__(self, input_shape, nb_actions,
-                 gamma=0.99, explorer=LinearEpsilonAnnealingExplorer(1, 0.1, 1000000),
+                 gamma=0.99, explorer=ExpEpsilonAnnealingExplorer(1, 0.1, 1000000),
                  learning_rate=0.00025, momentum=0.95, minibatch_size=32,
                  memory_size=500000, train_after=512, train_interval=1, target_update_interval=10000,
                  monitor=True):
@@ -267,3 +216,4 @@ class DeepQAgent(object):
             self._metrics_writer.write_value('Mean Std Q per ep.', std_q, self._num_actions_taken)
 
         self._metrics_writer.write_value('Sum rewards per ep.', sum(self._episode_rewards), self._num_actions_taken)
+        self._metrics_writer.write_value('Episode length.', len(self._episode_rewards), self._num_actions_taken)
