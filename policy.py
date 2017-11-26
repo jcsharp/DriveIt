@@ -4,7 +4,7 @@ import os.path as osp
 import numpy as np
 import tensorflow as tf
 
-sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "baselines"))
+sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
 from baselines.common.distributions import make_pdtype

@@ -7,7 +7,7 @@ import tensorflow as tf
 from datetime import datetime
 from policy import DriveItPolicy
 
-sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "baselines"))
+sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 
 from baselines import bench, logger
 
