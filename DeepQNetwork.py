@@ -54,8 +54,8 @@ class DeepQAgent(object):
     """
     def __init__(self, input_shape, nb_actions,
                  gamma=0.99, explorer=ExpEpsilonAnnealingExplorer(1, 0.1, 1000000),
-                 learning_rate=0.00025, momentum=0.95, minibatch_size=32,
-                 memory_size=500000, train_after=512, train_interval=1, target_update_interval=10000,
+                 learning_rate=0.0005, momentum=0.95, minibatch_size=128,
+                 memory_size=500000, train_after=256, train_interval=2, target_update_interval=10000,
                  monitor=True):
         self.input_shape = input_shape
         self.nb_actions = nb_actions
@@ -215,5 +215,8 @@ class DeepQAgent(object):
             std_q = np.asscalar(np.mean(self._episode_q_stddev))
             self._metrics_writer.write_value('Mean Std Q per ep.', std_q, self._num_actions_taken)
 
-        self._metrics_writer.write_value('Sum rewards per ep.', sum(self._episode_rewards), self._num_actions_taken)
+        tot_reward = sum(self._episode_rewards)
+        self._metrics_writer.write_value('Sum rewards per ep.', tot_reward, self._num_actions_taken)
         self._metrics_writer.write_value('Episode length.', len(self._episode_rewards), self._num_actions_taken)
+        self._metrics_writer.write_value('Sum rewards per step.', tot_reward / len(self._episode_rewards), self._num_actions_taken)
+        self._metrics_writer.write_value('Exporation rate.', self._explorer._epsilon(self._num_actions_taken), self._num_actions_taken)
