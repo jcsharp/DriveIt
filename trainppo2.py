@@ -15,16 +15,16 @@ from baselines.common.distributions import make_pdtype
 
 class DriveItPolicy(object):
 
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False): #pylint: disable=W0613
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, hid_size=128, reuse=False): #pylint: disable=W0613
         ob_shape = (nbatch,) + ob_space.shape
         nact = ac_space.n
         X = tf.placeholder(tf.float32, ob_shape, name='Ob') #obs
         with tf.variable_scope("model", reuse=reuse):
-            h1 = fc(X, 'pi_fc1', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
-            h2 = fc(h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
+            h1 = fc(X, 'pi_fc1', nh=hid_size, init_scale=np.sqrt(2), act=tf.tanh)
+            h2 = fc(h1, 'pi_fc2', nh=hid_size, init_scale=np.sqrt(2), act=tf.tanh)
             pi = fc(h2, 'pi', nact, act=lambda x:x, init_scale=0.01)
-            h1 = fc(X, 'vf_fc1', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
-            h2 = fc(h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
+            h1 = fc(X, 'vf_fc1', nh=hid_size, init_scale=np.sqrt(2), act=tf.tanh)
+            h2 = fc(h1, 'vf_fc2', nh=hid_size, init_scale=np.sqrt(2), act=tf.tanh)
             vf = fc(h2, 'vf', 1, act=lambda x:x)[:,0]
 
         self.pdtype = make_pdtype(ac_space)
@@ -77,17 +77,18 @@ def train(num_timesteps, seed):
     set_global_seeds(seed)
     env = VecFrameStack(env, 4)
     policy = DriveItPolicy
-    ppo2.learn(policy=policy, env=env, nsteps=2048, nminibatches=32,
+    ppo2.learn(policy=policy, env=env, nsteps=4096, nminibatches=32,
         lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
         ent_coef=0.0,
         lr=3e-4,
         cliprange=0.2,
-        total_timesteps=num_timesteps)
+        total_timesteps=num_timesteps,
+        save_interval=10)
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
+    parser.add_argument('--num-timesteps', type=int, default=int(1e7))
     parser.add_argument('--batch-name', type=str, default=datetime.now().strftime('%Y%m%d%H%M%S'))
     parser.add_argument('--log-dir', type=str, default='metrics')
     args = parser.parse_args()
