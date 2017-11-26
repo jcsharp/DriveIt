@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 import sys
+import os.path as osp
 import argparse
-from baselines import bench, logger
 from belief import BeliefDriveItEnv
-
 import numpy as np
 import tensorflow as tf
+from datetime import datetime
+
+sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "baselines"))
+
+from baselines import bench, logger
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
 from baselines.common.distributions import make_pdtype
 
@@ -51,7 +55,7 @@ def train(num_timesteps, seed):
     import gym
     import logging
     import multiprocessing
-    import os.path as osp
+
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
     config = tf.ConfigProto(allow_soft_placement=True,
@@ -84,9 +88,13 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
+    parser.add_argument('--batch-name', type=str, default=datetime.now().strftime('%Y%m%d%H%M%S'))
+    parser.add_argument('--log-dir', type=str, default='metrics')
     args = parser.parse_args()
-    log_dir = 'metrics/' + datetime.now().strftime('%Y%m%d%H%M%S')
+
+    log_dir = osp.join(args.log_dir, args.batch_name) 
     logger.configure(dir=log_dir, format_strs=['stdout','tensorboard'])
+
     train(num_timesteps=args.num_timesteps, seed=args.seed)
 
 
