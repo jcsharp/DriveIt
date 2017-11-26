@@ -77,12 +77,12 @@ def train(num_timesteps, seed):
     set_global_seeds(seed)
     env = VecFrameStack(env, 4)
     policy = DriveItPolicy
-    ppo2.learn(policy=policy, env=env, nsteps=128, nminibatches=4,
-        lam=0.95, gamma=0.99, noptepochs=4, log_interval=1,
-        ent_coef=.01,
-        lr=lambda f : f * 2.5e-4,
-        cliprange=lambda f : f * 0.1,
-        total_timesteps=int(num_timesteps * 1.1))
+    ppo2.learn(policy=policy, env=env, nsteps=2048, nminibatches=32,
+        lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
+        ent_coef=0.0,
+        lr=3e-4,
+        cliprange=0.2,
+        total_timesteps=num_timesteps)
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -93,7 +93,7 @@ def main():
     args = parser.parse_args()
 
     log_dir = osp.join(args.log_dir, args.batch_name) 
-    logger.configure(dir=log_dir, format_strs=['stdout','tensorboard'])
+    logger.configure(dir=log_dir, format_strs=['tensorboard']) #format_strs=['stdout','tensorboard'])
 
     train(num_timesteps=args.num_timesteps, seed=args.seed)
 
