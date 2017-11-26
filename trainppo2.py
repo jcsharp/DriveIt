@@ -51,10 +51,10 @@ def train(num_timesteps, seed):
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--num-timesteps', type=int, default=int(1e7))
-    parser.add_argument('--batch-name', type=str, default=datetime.now().strftime('%Y%m%d%H%M%S'))
-    parser.add_argument('--log-dir', type=str, default='metrics')
+    parser.add_argument('-s', '--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('-t', '--num-timesteps', type=int, default=int(1e7))
+    parser.add_argument('-l', '--log-dir', type=str, default='metrics')
+    parser.add_argument('-b', '--batch-name', type=str, default=datetime.now().strftime('%Y%m%d%H%M%S'))
     args = parser.parse_args()
 
     log_dir = osp.join(args.log_dir, args.batch_name) 
