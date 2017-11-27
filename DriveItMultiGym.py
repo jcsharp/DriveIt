@@ -22,7 +22,7 @@ dt = 1.0 / fps
 
 wrong_way_min = 0.275
 wrong_way_max = median_radius
-out_margin = blue_width
+out_margin = 0.0 #blue_width
 out_reward = -lap_median_length
 
 max_compass_bias = 0.02
