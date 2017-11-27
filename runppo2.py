@@ -23,7 +23,7 @@ def main():
 
     env = BeliefDriveItEnv(time_limit=180)
 
-    loader = tf.train.import_meta_graph(model_file)
+    loader = tf.train.import_meta_graph(model_file, clear_devices=True)
     g = tf.get_default_graph()
     pi = g.get_tensor_by_name("pi:0")
 
