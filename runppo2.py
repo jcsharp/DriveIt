@@ -14,28 +14,33 @@ def main():
     parser.add_argument('-t', '--num-timesteps', type=int, default=int(1e7))
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
     parser.add_argument('-b', '--batch-name', type=str, default=None)
-    parser.add_argument('-f', '--file', type=str, default='model.meta')
+    parser.add_argument('-m', '--model', type=str, default='make_model.pkl')
+    parser.add_argument('-c', '--checkpoint', type=str)
     args = parser.parse_args()
 
     model_dir = osp.join(args.log_dir, args.batch_name)
-    model_file = osp.join(model_dir, args.file)
-    checkpoint_path = osp.join(model_dir, 'checkpoints', '00230')
+    model_file = osp.join(model_dir, args.model)
+    checkpoint_path = osp.join(model_dir, 'checkpoints', args.checkpoint)
 
     env = BeliefDriveItEnv(time_limit=180)
 
-    loader = tf.train.import_meta_graph(model_file, clear_devices=True)
-    g = tf.get_default_graph()
-    pi = g.get_tensor_by_name("pi:0")
-
     with tf.Session() as sess:
-        #print(tf.train.latest_checkpoint(checkpoint_path))
-        loader.restore(sess, checkpoint_path)
+        import cloudpickle
+        with open(model_file, 'rb') as f:
+            make_model = cloudpickle.load(f)
+        model = make_model()
+        model.load(checkpoint_path)
 
         obs = env.reset()
-        print(obs)
-
-        act = sess.run(pi, feed_dict={'Ob:0': obs})
-        print(act)
+        reward, done = 0, False
+        while not done:
+            env.render()
+            a, v, _, _ = model.step([obs])
+            o, r, done, info = env.step(a[0])
+            reward += r
+        
+        print(reward)
+        env.close()
 
 if __name__ == '__main__':
     main()
