@@ -57,7 +57,6 @@ class DriveItEnvMulti(gym.Env):
 
         self._seed()
         self.time = -1.0
-        self.reset()
 
 
     def _seed(self, seed=None):
