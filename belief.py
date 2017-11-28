@@ -6,20 +6,43 @@ from DriveItCircuit import *
 
 
 class BeliefDriveItEnv(DriveItEnv):
+    look_ahead_time = 0.33
+    look_ahead_points = 8
 
-    def __init__(self, car=Car(), agents=list(), time_limit=10, noisy=True):
-        self.tracker = PositionTracking(car)
+    def __init__(self, car=Car(), agents=list(), time_limit=10, noisy=True, normalize=False):
         super().__init__(car, agents, time_limit, noisy)
-        self.observation_space = self.tracker.observation_space
+        self.tracker = PositionTracking(car)
+        self.normalize = normalize
+        # y_m, theta_m, v, k, k_t, k_a
+        high = np.array([  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ])
+        low  = np.array([ -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ])
+        self._high = high
+        if normalize:
+            high = np.array([  1.0,  1.0, 1.0,  1.0,  1.0,  1.0 ])
+            low  = np.array([ -1.0, -1.0, 0.0, -1.0, -1.0, -1.0 ])
+        self.observation_space = spaces.Box(low, high)
+
+    def _augment_pos(self, pos):
+        x_m, y_m, theta_m, v, k = pos
+        k_t = track_curvature(x_m, y_m)
+        k_a = curve_ahead(x_m, y_m, v * self.look_ahead_time, self.look_ahead_points)
+        return self._normalize((y_m, theta_m, v, k, k_t, k_a))
 
     def _reset(self, random_position=True):
         obs = super()._reset(random_position)
-        return self.tracker.normalize(self.tracker.reset(obs))
+        pos = self.tracker.reset(obs)
+        return self._augment_pos(pos)
 
     def _step(self, action):
         obs, reward, done, info = super()._step(action)
-        b = self.tracker.update(obs, self.dt)
-        return self.tracker.normalize(b), reward, done, info
+        pos = self.tracker.update(obs, self.dt)
+        bel = self._augment_pos(pos)
+        return bel, reward, done, info
+
+    def _normalize(self, belief):
+        if self.normalize:
+            return belief / self._high
+        return belief
 
 
 class PositionTracking():
@@ -94,10 +117,6 @@ class PositionTracking():
         self.position = (x, y, checkpoint)
 
         return x_m, y_m, theta_m, v, K
-
-
-    def normalize(self, belief):
-        return belief / self.observation_space.high
 
 
     def reset_all(trackers, observations):
