@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import os.path as osp
+import numpy as np
 import argparse
 import tensorflow as tf
 from belief import BeliefDriveItEnv
@@ -10,6 +11,9 @@ sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 from baselines.ppo2 import ppo2
 
 def main():
+    nenv = 8
+    nstack = 4
+
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-t', '--num-timesteps', type=int, default=int(1e7))
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
@@ -31,16 +35,22 @@ def main():
         model = make_model()
         model.load(checkpoint_path)
 
+        osize = env.observation_space.shape[0]
+        oz = np.zeros((nenv, osize * nstack))
+
         obs = env.reset()
         reward, done = 0, False
         while not done:
             env.render()
-            a, v, _, _ = model.step([obs])
+            for i in range(osize):
+                oz[0,i] = obs[i]
+            a, v, _, _ = model.step(oz)
             o, r, done, info = env.step(a[0])
             reward += r
         
         print(reward)
         env.close()
+        sess.close()
 
 if __name__ == '__main__':
     main()
