@@ -9,8 +9,8 @@ class BeliefDriveItEnv(DriveItEnv):
     look_ahead_time = 0.33
     look_ahead_points = 8
 
-    def __init__(self, car=Car(), agents=list(), time_limit=10, noisy=True, normalize=False):
-        super().__init__(car, agents, time_limit, noisy)
+    def __init__(self, car=Car(), bots=[], time_limit=10, noisy=True, normalize=False):
+        super().__init__(car, bots, time_limit, noisy)
         self.tracker = PositionTracking(car)
         self.normalize = normalize
         # y_m, theta_m, v, k, k_t, k_a

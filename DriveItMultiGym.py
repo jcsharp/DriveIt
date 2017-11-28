@@ -280,30 +280,30 @@ class DriveItEnvMulti(gym.Env):
 
 class DriveItEnv(DriveItEnvMulti):
 
-    def __init__(self, car=Car(), agents=list(), time_limit=10, noisy=True):
+    def __init__(self, car=Car(), bots=[], time_limit=10, noisy=True):
         self.car = car
-        self.agents = agents
-        cars = list()
+        self.bots = bots
+        cars = []
         cars.append(car)
-        for agent in agents:
+        for agent in bots:
             cars.append(agent.car)
         super().__init__(cars, time_limit, noisy)
 
     def _reset(self, random_position=True):
         obs = super()._reset(random_position)
         for i in range(1, self.car_num):
-            self.agents[i-1].reset(obs[self.cars[i]])
+            self.bots[i-1].reset(obs[self.cars[i]])
         return obs[self.car]
 
     def _step(self, action):
         actions = {}
         actions[self.car] = action
         for i in range(1, self.car_num):
-            actions[self.cars[i]] = self.agents.act()
+            actions[self.cars[i]] = self.bots.act()
 
         obs, rewards, done, info = super()._step(actions)
         
         for i in range(1, self.car_num):
-            self.agents[i].observe(obs[self.cars[i]], rewards[self.cars[i]], done, info)
+            self.bots[i].observe(obs[self.cars[i]], rewards[self.cars[i]], done, info)
 
         return obs[self.car], rewards[self.car], done, info
