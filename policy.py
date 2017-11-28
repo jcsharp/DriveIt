@@ -13,7 +13,7 @@ class DriveItPolicy(object):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, hid_size=128, reuse=False): #pylint: disable=W0613
         ob_shape = (nbatch,) + ob_space.shape
         nact = ac_space.n
-        X = tf.placeholder(tf.float32, ob_shape, name='Ob') #obs
+        X = tf.placeholder(tf.float32, ob_shape, name='obs')
         with tf.variable_scope("model", reuse=reuse):
             h1 = fc(X, 'pi_fc1', nh=hid_size, init_scale=np.sqrt(2), act=tf.tanh)
             h2 = fc(h1, 'pi_fc2', nh=hid_size, init_scale=np.sqrt(2), act=tf.tanh)
