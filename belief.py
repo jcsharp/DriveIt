@@ -25,7 +25,8 @@ class BeliefDriveItEnv(DriveItEnv):
     def _augment_pos(self, pos):
         x_m, y_m, theta_m, v, k = pos
         k_t = track_curvature(x_m, y_m)
-        k_a = curve_ahead(x_m, y_m, v * self.look_ahead_time, self.look_ahead_points)
+        lhdist = v * self.look_ahead_time * cos(theta_m)
+        k_a = curve_ahead(x_m, y_m, lhdist, self.look_ahead_points)
         return self._normalize((y_m, theta_m, v, k, k_t, k_a))
 
     def _reset(self, random_position=True):
