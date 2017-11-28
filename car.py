@@ -129,7 +129,7 @@ class Car(RectangularPart):
         ds = steer_actions[action] * self.specs.steer_step
         steer = max(-1.0, min(1.0, steer_ + ds))
         dp = throttle_actions[action] * self.specs.throttle_step
-        throttle = Car._safe_throttle_move(steer, throttle_, dp)
+        throttle, throttle_override = Car._safe_throttle_move(steer, throttle_, dp)
 
         # desired state
         K_hat = self.specs.K_max * steer
@@ -160,7 +160,7 @@ class Car(RectangularPart):
         self.state = (steer, throttle, d, v, K)
         self.bias = (steer_bias, throttle_bias)
 
-        return x, y, theta, steer, throttle, d, v, K_hat
+        return x, y, theta, steer, throttle, d, v, K_hat, throttle_override
 
 
     def detect_collision(self, cars):
@@ -193,11 +193,11 @@ class Car(RectangularPart):
         '''
         Moves the throttle by the desired amout or according to the safe speed limit.
         '''
+        desired_throttle = throttle + desired_change
         safe = Car._safe_throttle(steer)
-        if throttle + desired_change > safe:
-            return safe
-        else:
-            return max(0.0, min(1.0, throttle + desired_change))
+        if desired_throttle < safe:
+            safe = max(0.0, min(1.0, desired_throttle))
+        return safe, desired_throttle - safe
 
     def _safe_throttle(steer):
         '''

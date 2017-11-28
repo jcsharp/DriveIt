@@ -20,10 +20,8 @@ blue_threshold = 0.9
 fps = 60.0
 dt = 1.0 / fps
 
-wrong_way_min = 0.275
-wrong_way_max = median_radius
-out_margin = 0.0 #blue_width
 out_reward = -lap_median_length
+throttle_override_reward = -1.0
 
 max_compass_bias = 0.02
 compass_deviation = 0.0002
@@ -144,7 +142,7 @@ class DriveItEnvMulti(gym.Env):
             x_m_, bias = self.state[car]
 
             # move the car
-            x, y, theta, _, _, d, v, K_hat = car.step(action, dt)
+            x, y, theta, _, _, d, v, K_hat, throttle_override = car.step(action, dt)
 
             # read sensors
             blue = self._blueness(x, y)
@@ -175,12 +173,11 @@ class DriveItEnvMulti(gym.Env):
 
             # reward progress
             reward = dx_m
-            yout = abs(y_m) - half_track_width 
-            if (yout > out_margin):
+            if throttle_override > 0.0:
+                reward += throttle_override_reward * throttle_override
+            if abs(y_m) - half_track_width > 0.0:
                 reward = out_reward
                 exits.append(car)
-            elif (yout > 0.0):
-                reward = 0.0
 
             self.observations[car] = (d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0)
             rewards[car] = reward
