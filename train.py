@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     while current_step < max_steps:
         if current_step >= args.noop:
-            action = agent.act(current_state)
+            action = agent.act(np.asarray(current_state, dtype='float32'))
         new_state, reward, done, _ = env.step(action)
         new_state = new_state
 
@@ -42,3 +42,5 @@ if __name__ == '__main__':
             current_state = env.reset()
 
         current_step += 1
+
+    agent.save("plop.mod")
