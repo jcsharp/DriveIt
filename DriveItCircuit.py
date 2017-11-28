@@ -106,6 +106,63 @@ def median_to_cartesian(x_m: float, y_m: float, theta_m: float):
     return x, y, theta
 
 
+def track_tangent(x_m: float):
+    '''
+    Calculates the tangent of a specific position on the track median.
+    '''
+    # before checkpoint
+    if x_m >= -threshold_offset and x_m < threshold_to_curve_end:
+        # lap straight line
+        if x_m < threshold_to_curve:
+            return 0.0
+        # lower-right loop
+        else:
+            return (threshold_to_curve - x_m) / median_radius
+
+    # after checkpoint
+    else:
+        # checkpoint straight line
+        if x_m > 0 or x_m < -loop_to_threshold:
+            return -three_quarter_turn
+        # upper-left loop
+        else:
+            return (x_m + threshold_offset) / median_radius
+
+
+def track_curvature(x_m: float, y_m: float):
+    '''
+    Calculates the curvature of the track at the spcified median position.
+    '''
+    # before checkpoint
+    if x_m >= -threshold_offset and x_m < threshold_to_curve_end:
+        # lap straight line
+        if x_m < threshold_to_curve:
+            return 0.0
+        # lower-right loop
+        else:
+            return -loop_curvature * (median_radius - y_m) / median_radius
+    # after checkpoint
+    else:
+        # checkpoint straight line
+        if x_m > 0.0 or x_m < -loop_to_threshold:
+            return 0.0
+        # upper-left loop
+        else:
+            return -loop_curvature * (median_radius + y_m) / median_radius
+
+
+def curve_ahead(x_m: float, y_m: float, distance: float, points = 8):
+    '''
+    Calculates the average curvature of the track ahead of the specified median position.
+    '''
+    dx = distance / (points - 1)
+    curve = 0.0
+    for i in range(points):
+        curve += track_curvature(x_m + dx * i, y_m)
+
+    return curve / points
+
+
 def median_properties(x_m: float):
     '''
     Calculates the tangent and curvature of a specific position on the track median.
@@ -124,7 +181,7 @@ def median_properties(x_m: float):
     else:
         # checkpoint straight line
         if x_m > 0 or x_m < -loop_to_threshold:
-            return - three_quarter_turn, 0.0
+            return -three_quarter_turn, 0.0
         # upper-left loop
         else:
             tangent =  (x_m + threshold_offset) / median_radius
