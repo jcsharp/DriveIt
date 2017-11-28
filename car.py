@@ -6,7 +6,7 @@ Car class for the DriveIt Gym environment.
 
 import math
 import numpy as np
-from numpy import cos, sin, pi
+from numpy import cos, sin, pi, sqrt
 from utils import *
 from part import *
 from sensors import *
@@ -31,6 +31,14 @@ class CarSpecifications():
     def __init__(self, v_max=2.5):
         self.v_max = v_max
 
+    def safe_turn_speed(self, steer):
+        '''
+        Gets the safe velocity based on the specified steering position.
+        '''
+        if steer == 0.0: return self.v_max
+        safe = sqrt(self.max_accel / self.K_max / abs(steer))
+        return min(self.v_max, safe)
+        
 
 class Car(RectangularPart):
 
@@ -129,7 +137,7 @@ class Car(RectangularPart):
         ds = steer_actions[action] * self.specs.steer_step
         steer = max(-1.0, min(1.0, steer_ + ds))
         dp = throttle_actions[action] * self.specs.throttle_step
-        throttle, throttle_override = Car._safe_throttle_move(steer, throttle_, dp)
+        throttle, throttle_override = self._safe_throttle_move(steer, throttle_, dp)
 
         # desired state
         K_hat = self.specs.K_max * steer
@@ -189,21 +197,21 @@ class Car(RectangularPart):
         self.state = steer, throttle, d, v, K
 
 
-    def _safe_throttle_move(steer, throttle, desired_change):
+    def _safe_throttle_move(self, steer, throttle, desired_change):
         '''
         Moves the throttle by the desired amout or according to the safe speed limit.
         '''
         desired_throttle = throttle + desired_change
-        safe = Car._safe_throttle(steer)
+        safe = self.safe_throttle(steer)
         if desired_throttle < safe:
             safe = max(0.0, min(1.0, desired_throttle))
         return safe, desired_throttle - safe
 
-    def _safe_throttle(steer):
+    def safe_throttle(self, steer):
         '''
         Gets the safe throttle value based on the specified steering.
         '''
-        return min(1.0, 1.0 - abs(steer) / 2.0)
+        return self.specs.safe_turn_speed(steer) / self.specs.v_max
 
 
     def init_rendering(self, viewer):
