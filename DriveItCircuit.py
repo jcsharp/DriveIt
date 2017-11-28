@@ -148,7 +148,7 @@ def track_curvature(x_m: float, y_m: float):
             return 0.0
         # upper-left loop
         else:
-            return -loop_curvature * (median_radius + y_m) / median_radius
+            return loop_curvature * (median_radius + y_m) / median_radius
 
 
 def curve_ahead(x_m: float, y_m: float, distance: float, points = 8):
