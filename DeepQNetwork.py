@@ -220,3 +220,10 @@ class DeepQAgent(object):
         self._metrics_writer.write_value('Episode length.', len(self._episode_rewards), self._num_actions_taken)
         self._metrics_writer.write_value('Sum rewards per step.', tot_reward / len(self._episode_rewards), self._num_actions_taken)
         self._metrics_writer.write_value('Exporation rate.', self._explorer._epsilon(self._num_actions_taken), self._num_actions_taken)
+
+    def save(self, path):
+        self._action_value_net.save(path)
+
+    def load(self, path):
+        from cntk import load_model
+        self._action_value_net = load_model(path)
