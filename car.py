@@ -31,12 +31,12 @@ class CarSpecifications():
     def __init__(self, v_max=2.5):
         self.v_max = v_max
 
-    def safe_turn_speed(self, steer):
+    def safe_turn_speed(self, steer, margin=1.0):
         '''
         Gets the safe velocity based on the specified steering position.
         '''
         if steer == 0.0: return self.v_max
-        safe = sqrt(self.max_accel / self.K_max / abs(steer))
+        safe = sqrt(self.max_accel / self.K_max / abs(steer)) * margin
         return min(self.v_max, safe)
         
 
