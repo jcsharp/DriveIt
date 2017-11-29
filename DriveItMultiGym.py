@@ -21,7 +21,7 @@ fps = 60.0
 dt = 1.0 / fps
 
 out_reward = -lap_median_length
-throttle_override_reward = -1.0
+throttle_override_reward = -dt
 
 max_compass_bias = 0.02
 compass_deviation = 0.0002
