@@ -31,7 +31,7 @@ def train(num_timesteps, seed):
 
     def make_env(rank):
         def env_fn():
-            env = BeliefDriveItEnv(time_limit=180)
+            env = BeliefDriveItEnv(time_limit=180, normalize=True)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
@@ -44,7 +44,7 @@ def train(num_timesteps, seed):
     ppo2.learn(policy=policy, env=env, nsteps=4096, nminibatches=32,
         lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
         ent_coef=0.0,
-        lr=3e-4,
+        lr=1e-4,
         cliprange=0.2,
         total_timesteps=num_timesteps,
         save_interval=10)
