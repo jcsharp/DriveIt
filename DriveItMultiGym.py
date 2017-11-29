@@ -86,7 +86,7 @@ class DriveItEnvMulti(gym.Env):
         
             if self.noisy:
                 theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
-                steer += self.np_random.randint(-1, 1) * car.specs.steer_step
+                steer += self.np_random.uniform(-1, 1) * car.specs.steer_step
                     
         else:
             space = lap_median_length / len(self.cars)
