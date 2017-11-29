@@ -159,11 +159,13 @@ def curve_ahead(x_m: float, y_m: float, distance: float, points = 8):
     Calculates the average curvature of the track ahead of the specified median position.
     '''
     dx = distance / (points - 1)
-    curve = 0.0
+    curve, total_weigth = 0.0, 0.0
     for i in range(points):
-        curve += track_curvature(x_m + dx * i, y_m)
+        weight = points - i
+        curve += track_curvature(x_m + dx * i, y_m) * weight
+        total_weigth += weight
 
-    return curve / points
+    return curve / total_weigth
 
 
 def median_properties(x_m: float):
