@@ -13,12 +13,12 @@ class BeliefDriveItEnv(DriveItEnv):
         self.tracker = PositionTracking(car)
         self.normalize = normalize
         # y_m, theta_m, v, k, k_t, k_a
-        high = np.array([  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ])
-        low  = np.array([ -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ])
+        high = np.array([  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature ])
+        low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature ])
         self._high = high
         if normalize:
-            high = np.array([  1.0,  1.0, 1.0,  1.0,  1.0,  1.0 ])
-            low  = np.array([ -1.0, -1.0, 0.0, -1.0, -1.0, -1.0 ])
+            high = np.array([  1.0,  1.0,  1.0, 1.0,  1.0,  1.0 ])
+            low  = np.array([ -1.0, -1.0, -1.0, 0.0, -1.0, -1.0 ])
         self.observation_space = spaces.Box(low, high)
 
     def _augment_pos(self, pos):
@@ -26,7 +26,7 @@ class BeliefDriveItEnv(DriveItEnv):
         k_t = track_curvature(x_m, y_m)
         lhdist = v * self.look_ahead_time * cos(theta_m)
         k_a = curve_ahead(x_m, y_m, lhdist, self.look_ahead_points)
-        return self._normalize((y_m, theta_m, v, k, k_t, k_a))
+        return self._normalize((x_m, y_m, theta_m, v, k, k_a))
 
     def _reset(self, random_position=True):
         obs = super()._reset(random_position)
