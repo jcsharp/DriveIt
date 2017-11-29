@@ -4,17 +4,17 @@ Drive-It competition simulation environment
 @author: Jean-Claude Manoli
 """
 
+from os import path
 import math
+import numpy as np
+from numpy import cos, sin, pi #pylint: disable=W0611
 import gym
 from gym import spaces
 from gym.utils import seeding
 from gym.envs.classic_control import rendering
-import numpy as np
-from numpy import cos, sin, pi
-from os import path
-from car import *
-from utils import *
-from DriveItCircuit import *
+from car import Car, steer_actions
+from utils import * #pylint: disable=W0401,W0614
+from DriveItCircuit import * #pylint: disable=W0401,W0614
 
 blue_threshold = 0.9
 fps = 60.0
@@ -36,7 +36,6 @@ class DriveItEnvMulti(gym.Env):
 
 
     def __init__(self, cars=(Car()), time_limit=10, noisy=True):
-        
         self.cars = cars
         self.time_limit = time_limit
         self.noisy = noisy
@@ -55,6 +54,8 @@ class DriveItEnvMulti(gym.Env):
 
         self._seed()
         self.time = -1.0
+        self.observations = {}
+        self.state = {}
 
 
     def _seed(self, seed=None):
@@ -128,7 +129,7 @@ class DriveItEnvMulti(gym.Env):
         return self.observations
 
 
-    def _step(self, actions):
+    def _multi_step(self, actions):
 
         if len(actions) != self.car_num:
             raise ValueError('Wrong number of actions.')
@@ -270,7 +271,7 @@ class DriveItEnvMulti(gym.Env):
         The blueness is the normalized difference between the blue and the red 
         channels of the (simulated) RGB color sensor.
         '''
-        b, g, r, a = self._track_color(x, y, n=1)
+        b, _, r, a = self._track_color(x, y, n=1)
         if a == 0:
             return 1.0
         else:
@@ -280,9 +281,9 @@ class DriveItEnvMulti(gym.Env):
 
 class DriveItEnv(DriveItEnvMulti):
 
-    def __init__(self, car=Car(), bots=[], time_limit=10, noisy=True):
+    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True):
         self.car = car
-        self.bots = bots
+        self.bots = bots if bots != None else []
         cars = []
         cars.append(car)
         for agent in bots:
@@ -301,7 +302,7 @@ class DriveItEnv(DriveItEnvMulti):
         for i in range(1, self.car_num):
             actions[self.cars[i]] = self.bots.act()
 
-        obs, rewards, done, info = super()._step(actions)
+        obs, rewards, done, info = super()._multi_step(actions)
         
         for i in range(1, self.car_num):
             self.bots[i].observe(obs[self.cars[i]], rewards[self.cars[i]], done, info)
