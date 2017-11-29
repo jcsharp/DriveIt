@@ -284,11 +284,11 @@ class DriveItEnv(DriveItEnvMulti):
 
     def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True):
         self.car = car
-        self.bots = bots if bots != None else []
+        self.bots = [] if bots is None else bots
         cars = []
         cars.append(car)
-        for agent in bots:
-            cars.append(agent.car)
+        for bot in self.bots:
+            cars.append(bot.car)
         super().__init__(cars, time_limit, noisy)
 
     def _reset(self, random_position=True):
