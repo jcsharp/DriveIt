@@ -1,15 +1,14 @@
-from DriveItMultiGym import *
-from car import *
 from gym import spaces
-from DriveItCircuit import *
-
+from DriveItMultiGym import DriveItEnv
+from car import Car, steer_actions
+from DriveItCircuit import * #pylint: disable=W0401,W0614
 
 
 class BeliefDriveItEnv(DriveItEnv):
     look_ahead_time = 0.33
-    look_ahead_points = 8
+    look_ahead_points = 10
 
-    def __init__(self, car=Car(), bots=[], time_limit=10, noisy=True, normalize=False):
+    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True, normalize=True):
         super().__init__(car, bots, time_limit, noisy)
         self.tracker = PositionTracking(car)
         self.normalize = normalize
@@ -54,10 +53,12 @@ class PositionTracking():
         low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max ])
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
+        self.observation = ()
+        self.position = ()
 
 
     def reset(self, observation):
-        d, blue, theta, v, K, thres = observation
+        d, _, theta, v, K, _ = observation
         x, y, _ = median_to_cartesian(d, 0.0, 0.0)
         theta_m = track_tangent(d)
         self.observation = observation
@@ -77,18 +78,18 @@ class PositionTracking():
 
         x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
-        def print_adjustment(name, value, new_value, real_value, previous):
-            change = new_value - value
-            desired = real_value - value
-            error = desired - change
-            print('%s adjusted by %f (real %f, err %f)' % (name, change, desired, error))
+        # def print_adjustment(name, value, new_value, real_value):
+        #     change = new_value - value
+        #     desired = real_value - value
+        #     error = desired - change
+        #     print('%s adjusted by %f (real %f, err %f)' % (name, change, desired, error))
 
         pos_adjusted = False
 
         # checkpoint threshold
         if checkpoint and not checkpoint_:
             if x_m > 0.0:
-                #print_adjustment('y>', y, -half_track_width, self.car.get_position()[1], y_)
+                #print_adjustment('y>', y, -half_track_width, self.car.get_position()[1])
                 x_m = -checkpoint_median_length
                 y = -half_track_width
                 pos_adjusted = True
@@ -96,19 +97,19 @@ class PositionTracking():
         # lap threshold
         elif checkpoint_ and not checkpoint:
             if x_m < 0.0:
-                #print_adjustment('x>', x, -half_track_width, self.car.get_position()[0], x_)
+                #print_adjustment('x>', x, -half_track_width, self.car.get_position()[0])
                 x_m = 0
                 x = -half_track_width
                 pos_adjusted = True
         
         elif checkpoint and x_m > 0.0:
-            #print_adjustment('x<', x, -half_track_width, self.car.get_position()[0], x_)
+            #print_adjustment('x<', x, -half_track_width, self.car.get_position()[0])
             x_m = 0.0
             x = -half_track_width
             pos_adjusted = True
         
         elif x_m > checkpoint_median_length:
-            #print_adjustment('y<', y, -half_track_width, self.car.get_position()[1], y_)
+            #print_adjustment('y<', y, -half_track_width, self.car.get_position()[1])
             x_m = checkpoint_median_length
             y = -half_track_width
             pos_adjusted = True
@@ -121,15 +122,15 @@ class PositionTracking():
         return x_m, y_m, theta_m, v, K
 
 
-    def reset_all(trackers, observations):
-        b = {}
-        for tracker in trackers:
-            b[tracker.car] = tracker.reset(observations[tracker.car])
-        return b
+def reset_all(trackers, observations):
+    b = {}
+    for tracker in trackers:
+        b[tracker.car] = tracker.reset(observations[tracker.car])
+    return b
 
 
-    def update_all(trackers, observations, dt):
-        b = {}
-        for tracker in trackers:
-            b[tracker.car] = tracker.update(observations[tracker.car], dt)
-        return b
+def update_all(trackers, observations, dt):
+    b = {}
+    for tracker in trackers:
+        b[tracker.car] = tracker.update(observations[tracker.car], dt)
+    return b
