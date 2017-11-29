@@ -82,7 +82,8 @@ class DriveItEnvMulti(gym.Env):
                     return self._reset_car(i, random_position)
         
             theta, K = median_properties(x_m)
-            steer = K / car.specs.K_max
+            steer = np.round(K / car.specs.K_max / car.specs.steer_step) \
+                * car.specs.steer_step
         
             if self.noisy:
                 theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
