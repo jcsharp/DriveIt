@@ -60,10 +60,10 @@ class PositionTracking():
     def reset(self, observation):
         d, _, theta, v, K, _ = observation
         x, y, _ = median_to_cartesian(d, 0.0, 0.0)
-        theta_m = track_tangent(d)
+        theta_m = track_tangent(d) - theta
         self.observation = observation
         self.position = x, y, d < 0.0
-        return d, 0., theta, v, K
+        return d, 0., theta_m, v, K
 
 
     def update(self, observation, dt):
