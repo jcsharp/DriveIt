@@ -7,7 +7,7 @@ Drive-It competition simulation environment
 from os import path
 import math
 import numpy as np
-from numpy import cos, sin, pi #pylint: disable=W0611
+from numpy import cos, sin, pi, clip #pylint: disable=W0611
 import gym
 from gym import spaces
 from gym.utils import seeding
@@ -151,7 +151,7 @@ class DriveItEnvMulti(gym.Env):
 
             if self.noisy:
                 # add observation noise
-                bias = max(-max_compass_bias, min(max_compass_bias, self.np_random.normal(bias, compass_deviation)))
+                bias = clip(self.np_random.normal(bias, compass_deviation), -max_compass_bias, max_compass_bias)
                 theta_hat = theta + bias
                 v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * velocity_deviation)
                 v_hat = v + v_noise

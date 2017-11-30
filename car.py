@@ -6,7 +6,7 @@ Car class for the DriveIt Gym environment.
 
 import math
 import numpy as np
-from numpy import cos, sin, pi, sqrt
+from numpy import cos, sin, pi, sqrt, clip
 from utils import *
 from part import *
 from sensors import *
@@ -135,7 +135,7 @@ class Car(RectangularPart):
 
         # action
         ds = steer_actions[action] * self.specs.steer_step
-        steer = max(-1.0, min(1.0, steer_ + ds))
+        steer = clip(steer_ + ds, -1.0, 1.0)
         dp = throttle_actions[action] * self.specs.throttle_step
         throttle, throttle_override = self._safe_throttle_move(steer, throttle_, dp)
 
@@ -150,7 +150,7 @@ class Car(RectangularPart):
         # add mechanical noise
         if self.noisy:
             if ds != 0.0:
-                steer_bias = max(-max_steer_bias, min(max_steer_bias, self.np_random.normal(steer_bias, steer_bias_velocity)))
+                steer_bias = clip(self.np_random.normal(steer_bias, steer_bias_velocity), -max_steer_bias, max_steer_bias)
             if dp != 0.0:
                 throttle_bias = self.np_random.uniform(-max_throttle_bias, max_throttle_bias)
             K = K_hat + self.specs.K_max * steer_bias
@@ -204,7 +204,7 @@ class Car(RectangularPart):
         desired_throttle = throttle + desired_change
         safe = self.safe_throttle(steer)
         if desired_throttle < safe:
-            safe = max(0.0, min(1.0, desired_throttle))
+            safe = clip(desired_throttle, 0.0, 1.0)
         return safe, desired_throttle - safe
 
     def safe_throttle(self, steer):
