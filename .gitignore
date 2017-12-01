@@ -3,7 +3,7 @@
 
 # CNTK models
 *.mod
-metrics/
+metrics*/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
