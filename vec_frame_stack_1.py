@@ -48,3 +48,6 @@ class VecFrameStack(VecEnv):
         return self._observation_space
     def close(self):
         self.venv.close()
+    @property
+    def num_envs(self):
+        return 1
