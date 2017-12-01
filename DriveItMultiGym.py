@@ -200,8 +200,8 @@ class DriveItEnvMulti(gym.Env):
                         rewards[car1] = out_reward
                     done = True
 
-
-        return self.observations, rewards, done, { 'done': 'complete' if timeout else 'out' }
+        info = { 'done': 'complete' if timeout else 'out' } if done else {}
+        return self.observations, rewards, done, info
 
 
     def _render(self, mode='human', close=False):
