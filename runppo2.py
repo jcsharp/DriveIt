@@ -13,7 +13,6 @@ from baselines.common import set_global_seeds
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
-nenvs, nframes = 8, 4
 
 def load_model(model_file, checkpoint_path):
     import cloudpickle
@@ -24,7 +23,7 @@ def load_model(model_file, checkpoint_path):
     return model
 
 
-def render_one(model, time_limit=180, seed=0):
+def render_one(model, time_limit, nenvs, nframes, seed):
     from vec_frame_stack_1 import VecFrameStack
     env0 = BeliefDriveItEnv(time_limit=time_limit)
     env0.seed(seed)
@@ -46,7 +45,7 @@ def render_one(model, time_limit=180, seed=0):
     print((steps, reward, info))
 
 
-def create_venv(time_limit=180, seed=0):
+def create_venv(time_limit, nenvs, nframes, seed):
     from vec_frame_stack import VecFrameStack
     def make_env(rank):
         def env_fn():
@@ -60,8 +59,8 @@ def create_venv(time_limit=180, seed=0):
     env = VecFrameStack(env, nframes)
     return env
 
-def run_many(model, time_limit=180, seed=0):
-    env = create_venv(time_limit, seed)
+def run_many(model, time_limit, nenvs, nframes, seed):
+    env = create_venv(time_limit, nenvs, nframes, seed)
 
     o = env.reset()
     steps = 0
@@ -97,9 +96,9 @@ def main():
     with tf.Session() as sess:
         model = load_model(model_file, checkpoint_path)
         if args.render:
-            render_one(model, args.time_limit, args.seed)
+            render_one(model, args.time_limit, args.envs, args.frames, args.seed)
         else:
-            run_many(model, args.time_limit, args.seed)
+            run_many(model, args.time_limit, args.envs, args.frames, args.seed)
 
         sess.close()
 
