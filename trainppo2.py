@@ -2,6 +2,7 @@
 import sys
 import os.path as osp
 import argparse
+import numpy as np
 from belief import BeliefDriveItEnv
 import tensorflow as tf
 from datetime import datetime
@@ -11,10 +12,11 @@ sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 
 from baselines import bench, logger
 
-def train(num_timesteps, seed):
+
+def train(timesteps, nenvs, nframes, time_limit, seed):
     from baselines.common import set_global_seeds
     from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
-    from baselines.common.vec_env.vec_frame_stack import VecFrameStack
+    from vec_frame_stack import VecFrameStack
     from baselines.ppo2 import ppo2
     import gym
     import logging
@@ -31,36 +33,43 @@ def train(num_timesteps, seed):
 
     def make_env(rank):
         def env_fn():
-            env = BeliefDriveItEnv(time_limit=180, normalize=True)
+            env = BeliefDriveItEnv(time_limit=time_limit)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
         return env_fn
-    nenvs = 8
     env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
     set_global_seeds(seed)
-    env = VecFrameStack(env, 4)
+    env = VecFrameStack(env, nframes)
     policy = DriveItPolicy
-    ppo2.learn(policy=policy, env=env, nsteps=4096, nminibatches=32,
+    return ppo2.learn(policy=policy, env=env, nsteps=4096, nminibatches=32,
         lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
-        ent_coef=0.0,
+        ent_coef=0.00,
         lr=1e-4,
         cliprange=0.2,
-        total_timesteps=num_timesteps,
+        total_timesteps=timesteps,
         save_interval=10)
 
-def main():
+
+def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-s', '--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('-t', '--num-timesteps', type=int, default=int(1e7))
+    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=8)
+    parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
+    parser.add_argument('-t', '--time-limit', type=int, default=180)
+    parser.add_argument('-n', '--num-timesteps', type=int, default=int(5e6))
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
-    parser.add_argument('-b', '--batch-name', type=str, default=datetime.now().strftime('%Y%m%d%H%M%S'))
+    parser.add_argument('-b', '--batch-name', type=str, default=name)
     args = parser.parse_args()
+    assert(args.envs > 1)
 
     log_dir = osp.join(args.log_dir, args.batch_name) 
     logger.configure(dir=log_dir, format_strs=['tensorboard']) #format_strs=['stdout','tensorboard'])
 
-    train(num_timesteps=args.num_timesteps, seed=args.seed)
+    model = train(timesteps=args.num_timesteps, nenvs=args.envs, nframes=args.frames, \
+        time_limit=args.time_limit, seed=args.seed)
+    
+    return model
 
 
 if __name__ == '__main__':
