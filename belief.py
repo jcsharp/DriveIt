@@ -1,3 +1,4 @@
+import numpy as np
 from gym import spaces
 from DriveItMultiGym import DriveItEnv
 from car import Car, steer_actions
@@ -20,13 +21,18 @@ class BeliefDriveItEnv(DriveItEnv):
             high = np.array([  1.0,  1.0, 1.0,  1.0,  1.0,  1.0 ])
             low  = np.array([ -1.0, -1.0, 0.0, -1.0, -1.0, -1.0 ])
         self.observation_space = spaces.Box(low, high)
+        self.belief = np.zeros(low.shape, low.dtype)
 
     def _augment_pos(self, pos):
         x_m, y_m, theta_m, v, k = pos
         k_t = track_curvature(x_m, y_m)
         lhdist = v * self.look_ahead_time * cos(theta_m)
         k_a = curve_ahead(x_m, y_m, lhdist, self.look_ahead_points)
-        return self._normalize((y_m, theta_m, v, k, k_t, k_a))
+        if self.normalize:
+            self.belief[:] = (y_m, theta_m, v, k, k_t, k_a) / self._high
+        else:
+            self.belief[:] = (y_m, theta_m, v, k, k_t, k_a)
+        return self.belief
 
     def _reset(self, random_position=True):
         obs = super()._reset(random_position)
@@ -38,11 +44,6 @@ class BeliefDriveItEnv(DriveItEnv):
         pos = self.tracker.update(obs, self.dt)
         bel = self._augment_pos(pos)
         return bel, reward, done, info
-
-    def _normalize(self, belief):
-        if self.normalize:
-            return belief / self._high
-        return belief
 
 
 class PositionTracking():
