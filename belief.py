@@ -14,24 +14,35 @@ class BeliefDriveItEnv(DriveItEnv):
         self.tracker = PositionTracking(car)
         self.normalize = normalize
         # y_m, theta_m, v, k, k_t, k_a
-        high = np.array([  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ])
-        low  = np.array([ -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ])
+        high = [  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ]
+        low  = [ -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ]
+        for s in car.dist_sensors:
+            high.append(s.specs[0])
+            low.append(0.0)
+        high, low = np.array(high), np.array(low)
         self._high = high
         if normalize:
-            high = np.array([  1.0,  1.0, 1.0,  1.0,  1.0,  1.0 ])
-            low  = np.array([ -1.0, -1.0, 0.0, -1.0, -1.0, -1.0 ])
+            low  = low / high
+            high = high / high
         self.observation_space = spaces.Box(low, high)
         self.belief = np.zeros(low.shape, low.dtype)
+
+    def _read_sensors(self):
+        dist = []
+        for s in self.car.dist_sensors:
+            dist.append(s.read(self.cars))
+        return dist
 
     def _augment_pos(self, pos):
         x_m, y_m, theta_m, v, k = pos
         k_t = track_curvature(x_m, y_m)
         lhdist = v * self.look_ahead_time * cos(theta_m)
         k_a = curve_ahead(x_m, y_m, lhdist, self.look_ahead_points)
+        dist = self._read_sensors()
         if self.normalize:
-            self.belief[:] = (y_m, theta_m, v, k, k_t, k_a) / self._high
+            self.belief = ([y_m, theta_m, v, k, k_t, k_a] + dist) / self._high
         else:
-            self.belief[:] = (y_m, theta_m, v, k, k_t, k_a)
+            self.belief = ([y_m, theta_m, v, k, k_t, k_a] + dist)
         return self.belief
 
     def _reset(self, random_position=True):
