@@ -28,12 +28,12 @@ class MovingAverage(object):
         self.lifetime = lifetime
         self.sampling_time = sampling_time
         self.exp = np.exp(-sampling_time / lifetime)
-        self.last_value = np.nan
-        self.mean_value = np.nan
+        self.last_value = None
+        self.mean_value = None
 
     def filter(self, value):
         self.last_value = value
-        if np.isnan(self.mean_value):
+        if self.mean_value is None:
             self.mean_value = value
         else:
             self.mean_value = value + self.exp * (self.mean_value - value)
