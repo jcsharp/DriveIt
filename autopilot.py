@@ -1,14 +1,35 @@
+# -*- coding: utf-8 -*-
+"""
+Autopilot classes for the DriveIt Gym environment.
+@author: Jean-Claude Manoli
+"""
+
 import numpy as np
 
 epsilon = 0.05
 
 class Autopilot(object):
+    def __init__(self, car):
+        self.car = car
+        self.observation, self.deltas = [], []
+
+    def reset(self, observation):
+        self.observation = observation
+        self.deltas = np.zeros(np.shape(observation))
+
+    def observe(self, observation):
+        self.deltas = observation - self.observation
+        self.observation = observation
+
+    def act(self): raise NotImplementedError
+
+
+class LookAheadPilot(Autopilot):
     def __init__(self, car,
                  ky=3.0, kdy=10.0, 
                  kth=3.0, kdth=10.0, 
                  kka=3.0, kdka=-3.0):
-        self.car = car
-        self.observation, self.deltas = [], []
+        super().__init__(car)
         self.params = ky, kdy, kth, kdth, kka, kdka
 
     def reset(self, observation):
