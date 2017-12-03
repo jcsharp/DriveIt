@@ -301,11 +301,11 @@ class DriveItEnv(DriveItEnvMulti):
         actions = {}
         actions[self.car] = action
         for i in range(1, self.car_num):
-            actions[self.cars[i]] = self.bots.act()
+            actions[self.cars[i]] = self.bots[i-1].act()
 
         obs, rewards, done, info = super()._multi_step(actions)
         
         for i in range(1, self.car_num):
-            self.bots[i].observe(obs[self.cars[i]], dt)
+            self.bots[i-1].observe(obs[self.cars[i]], dt)
 
         return obs[self.car], rewards[self.car], done, info
