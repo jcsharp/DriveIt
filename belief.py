@@ -33,7 +33,7 @@ class BeliefDriveItEnv(DriveItEnv):
 class BeliefTracking(PositionTracking):
     look_ahead_time = 0.33
     look_ahead_points = 10
-    filter_gain = 0.85
+    filter_gain = 0.75
 
     def __init__(self, car, other_cars, normalize=True):
         super().__init__(car)
