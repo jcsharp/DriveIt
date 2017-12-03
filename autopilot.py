@@ -43,8 +43,7 @@ class LookAheadPilot(Autopilot):
         super().__init__(car, other_cars)
         self.params = ky, kdy, kth, kdth, kka, kdka
 
-    def _danger(self, dist):
-        x, _, _ = cartesian_to_median(*self.tracker.position)
+    def _danger(self, dist, x):
         if dist[0] < 0.25:
             return True
         if x > -1.0 and x < 0.0 and dist[0] < 0.5:
@@ -55,8 +54,8 @@ class LookAheadPilot(Autopilot):
         return False
 
     def _act(self):
-        y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
-        dy, dth, dv, dk, dkt, dka, *ddist = self.deltas #pylint: disable=W0612
+        x, y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
+        dx, dy, dth, dv, dk, dkt, dka, *ddist = self.deltas #pylint: disable=W0612
         ky, kdy, kth, kdth, kka, kdka = self.params
 
         fy = ky * y + kdy * dy
@@ -67,7 +66,7 @@ class LookAheadPilot(Autopilot):
         elif f < -epsilon: action = 2
         else: action = 0
         
-        if self._danger(dist):
+        if self._danger(dist, x):
             action += 6
         else:
             safe_throttle = self.car.specs.safe_turn_speed( \

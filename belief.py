@@ -37,9 +37,9 @@ class BeliefTracking(PositionTracking):
         super().__init__(car)
         self.other_cars = [] if other_cars is None else other_cars
         self.normalize = normalize
-        # y_m, theta_m, v, k, k_t, k_a
-        high = [  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ]
-        low  = [ -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ]
+        # x_m, y_m, theta_m, v, k, k_t, k_a
+        high = [  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ]
+        low  = [ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ]
         for s in car.dist_sensors:
             high.append(s.specs[0])
             low.append(0.0)
@@ -64,9 +64,9 @@ class BeliefTracking(PositionTracking):
         k_a = curve_ahead(x_m, y_m, lhdist, self.look_ahead_points)
         dist = self._read_sensors()
         if self.normalize:
-            self.belief = ([y_m, theta_m, v, k, k_t, k_a] + dist) / self._high
+            self.belief = ([x_m, y_m, theta_m, v, k, k_t, k_a] + dist) / self._high
         else:
-            self.belief = ([y_m, theta_m, v, k, k_t, k_a] + dist)
+            self.belief = ([x_m, y_m, theta_m, v, k, k_t, k_a] + dist)
         return self.belief
         
     def reset(self, observation):
