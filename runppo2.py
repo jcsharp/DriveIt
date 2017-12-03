@@ -6,6 +6,9 @@ import argparse
 import tensorflow as tf
 from belief import BeliefDriveItEnv
 from policy import DriveItPolicy
+from car import Car
+from autopilot import LookAheadPilot
+from PositionTracking import TruePosition
 
 sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 from baselines.ppo2 import ppo2
@@ -49,7 +52,10 @@ def create_venv(time_limit, nenvs, nframes, seed):
     from vec_frame_stack import VecFrameStack
     def make_env(rank):
         def env_fn():
-            env = BeliefDriveItEnv(time_limit=time_limit)
+            cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
+            bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
+                    for car in cars[1:]]
+            env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit)
             env.seed(seed + rank)
             # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
