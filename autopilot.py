@@ -1,48 +1,50 @@
 # -*- coding: utf-8 -*-
 """
-Autopilot classes for the DriveIt Gym environment.
+Autopilots for the DriveIt Gym environment.
 @author: Jean-Claude Manoli
 """
-
 import numpy as np
+from belief import BeliefTracking
 
 epsilon = 0.05
 
 class Autopilot(object):
-    def __init__(self, car):
+    def __init__(self, car, other_cars=None):
         self.car = car
-        self.observation, self.deltas = [], []
+        self.tracker = BeliefTracking(car, other_cars, normalize=True)
+        self.belief, self.deltas = [], []
+        self.action = 0
 
     def reset(self, observation):
-        self.observation = observation
-        self.deltas = np.zeros(np.shape(observation))
+        belief = self.tracker.reset(observation)
+        self.deltas = np.zeros(np.shape(belief))
+        self.belief = belief
+        return belief
 
-    def observe(self, observation):
-        self.deltas = observation - self.observation
-        self.observation = observation
+    def observe(self, observation, dt):
+        belief = self.tracker.update(self.action, observation, dt)
+        self.deltas = belief - self.belief
+        self.belief = belief
+        return belief
 
-    def act(self): raise NotImplementedError
+    def act(self):
+        self.action = self._act()
+        return self.action
+
+    def _act(self): raise NotImplementedError
 
 
 class LookAheadPilot(Autopilot):
-    def __init__(self, car,
+    def __init__(self, car, other_cars=None, 
                  ky=3.0, kdy=10.0, 
                  kth=3.0, kdth=10.0, 
                  kka=3.0, kdka=-3.0):
-        super().__init__(car)
+        super().__init__(car, other_cars)
         self.params = ky, kdy, kth, kdth, kka, kdka
 
-    def reset(self, observation):
-        self.observation = observation
-        self.deltas = np.zeros(np.shape(observation))
-
-    def observe(self, observation):
-        self.deltas = observation - self.observation
-        self.observation = observation
-
-    def act(self):
-        y, th, v, k, kt, ka, d1, d2, d3, d4, d5 = self.observation
-        dy, dth, dv, dk, dkt, dka, dd1, dd2, dd3, dd4, dd5 = self.deltas
+    def _act(self):
+        y, th, v, k, kt, ka, d1, d2, d3, d4, d5 = self.belief #pylint: disable=W0612
+        dy, dth, dv, dk, dkt, dka, dd1, dd2, dd3, dd4, dd5 = self.deltas #pylint: disable=W0612
         ky, kdy, kth, kdth, kka, kdka = self.params
 
         fy = ky * y + kdy * dy
