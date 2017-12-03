@@ -20,7 +20,7 @@ blue_threshold = 0.9
 fps = 60.0
 dt = 1.0 / fps
 
-out_reward = -lap_median_length
+out_reward = -checkpoint_median_length
 throttle_override_reward = -dt
 
 max_compass_bias = 0.02
