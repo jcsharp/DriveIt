@@ -49,7 +49,7 @@ class LookAheadPilot(Autopilot):
         if x > -1.0 and x < 0.0 and dist[0] < 0.5:
             return True
         if len(dist) > 2:
-            if dist[1] < 0.9 or dist[2] < 0.9:
+            if dist[1] < 0.95 or dist[2] < 0.95:
                 return True
         return False
 
