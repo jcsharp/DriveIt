@@ -5,6 +5,7 @@ Autopilots for the DriveIt Gym environment.
 """
 import numpy as np
 from belief import BeliefTracking
+from DriveItCircuit import cartesian_to_median
 
 epsilon = 0.05
 
@@ -43,9 +44,13 @@ class LookAheadPilot(Autopilot):
         self.params = ky, kdy, kth, kdth, kka, kdka
 
     def _danger(self, dist):
-        for d in dist[:3]:
-            if d < 0.18 \
-            or d < 0.5 and self.tracker.observation[-1]:
+        x, _, _ = cartesian_to_median(*self.tracker.position)
+        if dist[0] < 0.25:
+            return True
+        if x > -1.0 and x < 0.0 and dist[0] < 0.5:
+            return True
+        if len(dist) > 2:
+            if dist[1] < 0.9 or dist[2] < 0.9:
                 return True
         return False
 
