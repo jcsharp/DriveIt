@@ -194,10 +194,12 @@ class DriveItEnvMulti(gym.Env):
             for car1 in self.cars:
                 car2 = car1.detect_collision(self.cars)
                 if car2 is not None:
-                    if self.state[car1][0] < 0 and self.state[car2][0] > 0:
-                        rewards[car2] = out_reward
-                    else:
-                        rewards[car1] = out_reward
+                    rewards[car1] = out_reward
+                    rewards[car2] = out_reward
+                    # if self.state[car1][0] < 0 and self.state[car2][0] > 0:
+                    #     rewards[car2] = out_reward
+                    # else:
+                    #     rewards[car1] = out_reward
                     done = True
 
         info = { 'done': 'complete' if timeout else 'out' } if done else {}
