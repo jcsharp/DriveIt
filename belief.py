@@ -40,6 +40,7 @@ class BeliefTracking(PositionTracking):
         # x_m, y_m, theta_m, v, k, k_t, k_a
         high = [  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ]
         low  = [ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ]
+        self.sensor_index = len(low)
         for s in car.dist_sensors:
             high.append(s.specs[0])
             low.append(0.0)
@@ -52,22 +53,20 @@ class BeliefTracking(PositionTracking):
         self.belief = np.zeros(low.shape, low.dtype)
 
     def _read_sensors(self):
-        dist = []
-        for s in self.car.dist_sensors:
-            dist.append(s.read(self.other_cars))
-        return dist
+        for i in range(len(self.car.dist_sensors)):
+            self.belief[i + self.sensor_index] = self.car.dist_sensors[i].read(self.other_cars)
 
     def _augment_pos(self, pos):
         x_m, y_m, theta_m, v, k = pos
         k_t = track_curvature(x_m, y_m)
         lhdist = v * self.look_ahead_time * cos(theta_m)
         k_a = curve_ahead(x_m, y_m, lhdist, self.look_ahead_points)
-        dist = self._read_sensors()
+        self._read_sensors()
+        self.belief[:self.sensor_index] = x_m, y_m, theta_m, v, k, k_t, k_a
         if self.normalize:
-            self.belief = ([x_m, y_m, theta_m, v, k, k_t, k_a] + dist) / self._high
+            return self.belief / self._high
         else:
-            self.belief = ([x_m, y_m, theta_m, v, k, k_t, k_a] + dist)
-        return self.belief
+            return self.belief
         
     def reset(self, observation):
         pos = super().reset(observation)
