@@ -1,6 +1,6 @@
 import numpy as np
 
-class LowPassFilter():
+class LowPassFilter(object):
     '''
     First order discrete IIR filter.
     '''
@@ -8,6 +8,7 @@ class LowPassFilter():
         self.feedback_gain = np.ones_like(initial_value) * feedback_gain
         self.initial_value = initial_value
         self.output_gain = 1.0 - feedback_gain
+        self.input = np.nan
         self.output = initial_value
         self.feedback_value = initial_value / self.output_gain
 
@@ -18,3 +19,23 @@ class LowPassFilter():
         self.output = self.output_gain * self.feedback_value
         
         return self.output
+
+class MovingAverage(object):
+    '''
+    Moving average filter.
+    '''
+    def __init__(self, lifetime, sampling_time):
+        self.lifetime = lifetime
+        self.sampling_time = sampling_time
+        self.exp = np.exp(-sampling_time / lifetime)
+        self.last_value = np.nan
+        self.mean_value = np.nan
+
+    def filter(self, value):
+        self.last_value = value
+        if np.isnan(self.mean_value):
+            self.mean_value = value
+        else:
+            self.mean_value = value + self.exp * (self.mean_value - value)
+        
+        return self.mean_value
