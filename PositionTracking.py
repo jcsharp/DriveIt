@@ -10,7 +10,7 @@ from DriveItCircuit import * #pylint: disable=W0401,W0614
 #pylint: disable=C0301
 
 
-class PositionTracking(object):
+class PositionTrackingBase(object):
 
     def __init__(self, car):
         self.car = car
@@ -18,6 +18,31 @@ class PositionTracking(object):
         low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max ])
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
+
+    def reset(self, observation): raise NotImplementedError
+
+    def update(self, action, observation, dt): raise NotImplementedError
+
+
+class TruePosition(PositionTrackingBase):
+
+    def _get_state(self):
+        x, y, theta = self.car.get_position()
+        xm, ym, thm = cartesian_to_median(x, y, theta)
+        _, _, _, v, K = self.car.state
+        return xm, ym, thm, v, K
+
+    def reset(self, observation): #pylint: disable=W0613
+        return self._get_state()
+
+    def update(self, action, observation, dt): #pylint: disable=W0613
+        return self._get_state()
+
+
+class PositionTracking(PositionTrackingBase):
+
+    def __init__(self, car):
+        super().__init__(car)
         self.observation = ()
         self.position = ()
 

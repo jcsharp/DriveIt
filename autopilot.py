@@ -5,13 +5,15 @@ Autopilots for the DriveIt Gym environment.
 """
 import numpy as np
 from belief import BeliefTracking
+from PositionTracking import PositionTracking
 
 epsilon = 0.05
 
+
 class Autopilot(object):
-    def __init__(self, car, other_cars=None):
+    def __init__(self, car, other_cars=None, tracker_type=PositionTracking):
         self.car = car
-        self.tracker = BeliefTracking(car, other_cars, normalize=True)
+        self.tracker = BeliefTracking(car, other_cars, tracker_type, normalize=True)
         self.belief, self.deltas = [], []
         self.action = 0
 
@@ -35,11 +37,11 @@ class Autopilot(object):
 
 
 class LookAheadPilot(Autopilot):
-    def __init__(self, car, other_cars=None, 
+    def __init__(self, car, other_cars=None, tracker_type=PositionTracking,
                  ky=3.0, kdy=10.0, 
                  kth=3.0, kdth=10.0, 
                  kka=3.0, kdka=-3.0):
-        super().__init__(car, other_cars)
+        super().__init__(car, other_cars, tracker_type)
         self.params = ky, kdy, kth, kdth, kka, kdka
 
     def _danger(self, dist, ddist, x):

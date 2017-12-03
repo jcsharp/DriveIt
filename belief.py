@@ -17,7 +17,7 @@ class BeliefDriveItEnv(DriveItEnv):
     def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True, normalize=True):
         super().__init__(car, bots, time_limit, noisy)
         other_cars = None if bots is None else [b.car for b in bots]
-        self.tracker = BeliefTracking(car, other_cars, normalize)
+        self.tracker = BeliefTracking(car, other_cars, PositionTracking, normalize)
         self.observation_space = self.tracker.observation_space
 
     def _reset(self, random_position=True):
@@ -30,13 +30,14 @@ class BeliefDriveItEnv(DriveItEnv):
         return bel, reward, done, info
 
 
-class BeliefTracking(PositionTracking):
+class BeliefTracking(object):
     look_ahead_time = 0.33
     look_ahead_points = 10
     filter_gain = 0.75
 
-    def __init__(self, car, other_cars, normalize=True):
-        super().__init__(car)
+    def __init__(self, car, other_cars, tracker_type=PositionTracking, normalize=True):
+        self.car = car
+        self.tracker = tracker_type(car)
         self.other_cars = [] if other_cars is None else other_cars
         self.normalize = normalize
         # x_m, y_m, theta_m, v, k, k_t, k_a
@@ -73,11 +74,11 @@ class BeliefTracking(PositionTracking):
             return self.belief
         
     def reset(self, observation):
-        pos = super().reset(observation)
+        pos = self.tracker.reset(observation)
         bel = self._augment_pos(pos)
         LowPassFilter(self.filter_gain, bel[self.sensor_index:])
         return bel
 
     def update(self, action, observation, dt):
-        pos = super().update(action, observation, dt)
+        pos = self.tracker.update(action, observation, dt)
         return self._augment_pos(pos)
