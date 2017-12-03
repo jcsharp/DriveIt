@@ -8,6 +8,7 @@ from gym import spaces
 from DriveItMultiGym import DriveItEnv
 from car import Car
 from PositionTracking import PositionTracking
+from filter import LowPassFilter
 from DriveItCircuit import * #pylint: disable=W0401,W0614
 #pylint: disable=C0301
 
@@ -32,6 +33,7 @@ class BeliefDriveItEnv(DriveItEnv):
 class BeliefTracking(PositionTracking):
     look_ahead_time = 0.33
     look_ahead_points = 10
+    filter_gain = 0.85
 
     def __init__(self, car, other_cars, normalize=True):
         super().__init__(car)
@@ -51,10 +53,12 @@ class BeliefTracking(PositionTracking):
             high = high / high
         self.observation_space = spaces.Box(low, high)
         self.belief = np.zeros(low.shape, low.dtype)
+        self.df = LowPassFilter(self.filter_gain, self.belief[self.sensor_index:])
 
     def _read_sensors(self):
         for i in range(len(self.car.dist_sensors)):
             self.belief[i + self.sensor_index] = self.car.dist_sensors[i].read(self.other_cars)
+        self.belief[self.sensor_index:] = self.df.filter(self.belief[self.sensor_index:])
 
     def _augment_pos(self, pos):
         x_m, y_m, theta_m, v, k = pos
@@ -70,7 +74,9 @@ class BeliefTracking(PositionTracking):
         
     def reset(self, observation):
         pos = super().reset(observation)
-        return self._augment_pos(pos)
+        bel = self._augment_pos(pos)
+        LowPassFilter(self.filter_gain, bel[self.sensor_index:])
+        return bel
 
     def update(self, action, observation, dt):
         pos = super().update(action, observation, dt)
