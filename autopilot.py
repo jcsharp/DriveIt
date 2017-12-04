@@ -49,7 +49,7 @@ class LookAheadPilot(Autopilot):
         if dist[0] < 0.8 and x < 0.0 and x > -0.8:
             dd = True
         for i in range(0, min(3, len(dist))):
-            ddd = min(dd, ddist[i])
+            ddd = min(ddd, ddist[i])
             if dist[i] < (0.25 if i == 0 else 0.95):
                 d = True
                 if dist[i] < (0.20 if i == 0 else 0.80):
