@@ -9,6 +9,7 @@ from policy import DriveItPolicy
 from car import Car
 from autopilot import LookAheadPilot
 from PositionTracking import TruePosition
+from utils import Color
 
 sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 from baselines.ppo2 import ppo2
@@ -28,8 +29,8 @@ def load_model(model_file, checkpoint_path):
 
 def render_one(model, time_limit, nenvs, nframes, seed):
     from vec_frame_stack_1 import VecFrameStack
-    env0 = BeliefDriveItEnv(time_limit=time_limit)
-    env0.seed(seed)
+
+    env0 = create_env(time_limit, seed)
     env = VecFrameStack(env0, nframes)
     obs = np.zeros((nenvs,) + env.observation_space.shape)
 
@@ -46,19 +47,22 @@ def render_one(model, time_limit, nenvs, nframes, seed):
         reward += r
     
     print((steps, reward, info))
+    input('Press enter to terminate.')
 
+def create_env(time_limit, seed):
+    cars = [Car.HighPerf(Color.green, v_max=2.0), Car.Simple(Color.purple, v_max=1.0)]
+    bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
+            for car in cars[1:]]
+    env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit)
+    env.seed(seed)
+    # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
+    return env
 
 def create_venv(time_limit, nenvs, nframes, seed):
     from vec_frame_stack import VecFrameStack
     def make_env(rank):
         def env_fn():
-            cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
-            bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
-                    for car in cars[1:]]
-            env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit)
-            env.seed(seed + rank)
-            # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
-            return env
+            return create_env(time_limit, seed + rank)
         return env_fn
     env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
     set_global_seeds(seed)
