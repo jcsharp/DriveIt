@@ -102,7 +102,7 @@ def main():
     parser.add_argument('-m', '--model', type=str, default='make_model.pkl')
     parser.add_argument('-c', '--checkpoint', type=str)
     parser.add_argument('-e', '--envs', help='number of environments', type=int, default=8)
-    parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
+    parser.add_argument('-f', '--frames', help='number of frames', type=int, default=16)
     parser.add_argument('-t', '--time-limit', type=int, default=180)
     parser.add_argument('-r', '--render', action='store_true', default=False)
     parser.add_argument('-v', '--video-record', action='store_true', default=False)
