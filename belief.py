@@ -53,13 +53,14 @@ class BeliefTracking(object):
             low  = low / high
             high = high / high
         self.observation_space = spaces.Box(low, high)
-        self.belief = np.zeros(low.shape, low.dtype)
-        self.df = LowPassFilter(self.filter_gain, self.belief[self.sensor_index:])
+        self.belief = np.zeros(low.shape, dtype=low.dtype)
+        self.dist = np.zeros(len(car.dist_sensors), dtype=low.dtype)
+        self.df = LowPassFilter(self.filter_gain, self.dist)
 
     def _read_sensors(self):
         for i in range(len(self.car.dist_sensors)):
-            self.belief[i + self.sensor_index] = self.car.dist_sensors[i].read(self.other_cars)
-        self.belief[self.sensor_index:] = self.df.filter(self.belief[self.sensor_index:])
+            self.dist[i] = self.car.dist_sensors[i].read(self.other_cars)
+        self.belief[self.sensor_index:] = self.df.filter(self.dist)
 
     def _augment_pos(self, pos):
         x_m, y_m, theta_m, v, k = pos
