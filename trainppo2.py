@@ -38,7 +38,7 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
             cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
             bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
                     for car in cars[1:]]
-            env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=False)
+            env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=True, random_position=True)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
@@ -60,9 +60,9 @@ def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-s', '--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('-e', '--envs', help='number of environments', type=int, default=8)
-    parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
+    parser.add_argument('-f', '--frames', help='number of frames', type=int, default=16)
     parser.add_argument('-t', '--time-limit', type=int, default=180)
-    parser.add_argument('-n', '--num-timesteps', type=int, default=int(1e7))
+    parser.add_argument('-n', '--num-timesteps', type=int, default=int(3e7))
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
     parser.add_argument('-b', '--batch-name', type=str, default=name)
     args = parser.parse_args()
