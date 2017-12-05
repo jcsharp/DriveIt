@@ -27,17 +27,22 @@ def load_model(model_file, checkpoint_path):
     return model
 
 
-def render_one(model, time_limit, nenvs, nframes, seed):
+def render_one(model, time_limit, nenvs, nframes, seed, record=False):
     from vec_frame_stack_1 import VecFrameStack
 
     env0 = create_env(time_limit, seed)
     env = VecFrameStack(env0, nframes)
     obs = np.zeros((nenvs,) + env.observation_space.shape)
 
-    o = env.reset()
     steps = 0
     reward = 0
     done = False
+    o = env.reset()
+
+    if record:
+        env0.render()
+        input('Start recorder and press enter...')
+    
     while not done:
         env0.render()
         steps += 1
@@ -47,7 +52,8 @@ def render_one(model, time_limit, nenvs, nframes, seed):
         reward += r
     
     print((steps, reward, info))
-    input('Press enter to terminate.')
+    input('Done. Press enter to close.')
+
 
 def create_env(time_limit, seed):
     cars = [Car.HighPerf(Color.green, v_max=2.0), Car.Simple(Color.purple, v_max=1.0)]
@@ -97,6 +103,7 @@ def main():
     parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
     parser.add_argument('-t', '--time-limit', type=int, default=180)
     parser.add_argument('-r', '--render', action='store_true', default=False)
+    parser.add_argument('-v', '--video-record', action='store_true', default=False)
     args = parser.parse_args()
 
     model_dir = osp.join(args.log_dir, args.batch_name)
@@ -106,7 +113,7 @@ def main():
     with tf.Session() as sess:
         model = load_model(model_file, checkpoint_path)
         if args.render:
-            render_one(model, args.time_limit, args.envs, args.frames, args.seed)
+            render_one(model, args.time_limit, args.envs, args.frames, args.seed, args.video_record)
         else:
             run_many(model, args.time_limit, args.envs, args.frames, args.seed)
 
