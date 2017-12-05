@@ -9,11 +9,11 @@ class VecFrameStack(VecEnv):
     def __init__(self, venv, nstack, shift=None):
         self.venv = venv
         self.nstack = nstack
+        wos = venv.observation_space # wrapped ob space
         if shift is None:
-            self.shift = venv.observation_space.shape[-1]
+            self.shift = wos.shape[-1]
         else:
             self.shift = shift
-        wos = venv.observation_space # wrapped ob space
         low = np.repeat(wos.low, self.nstack, axis=-1)
         high = np.repeat(wos.high, self.nstack, axis=-1)
         self.stackedobs = np.zeros((1,)+low.shape, low.dtype)
