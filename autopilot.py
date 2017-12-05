@@ -45,17 +45,19 @@ class LookAheadPilot(Autopilot):
         self.params = ky, kdy, kth, kdth, kka, kdka
 
     def _danger(self, dist, ddist, x):
-        d, dd, ddd = False, False, 1.0
-        if dist[0] < 0.8 and x < 0.0 and x > -0.8:
-            dd = True
+        d, dd, ddd, yi = False, False, 1.0, False
+        if x < 0.0 and x > -0.8:
+            yi = True
+            if dist[0] < 0.8:
+                dd = True
         for i in range(0, min(3, len(dist))):
             ddd = min(ddd, ddist[i])
-            if dist[i] < (0.25 if i == 0 else 0.95):
+            if dist[i] < (0.3 if i == 0 else 0.95):
                 d = True
                 if dist[i] < (0.20 if i == 0 else 0.80):
                     dd = True
                 
-        return d, dd, ddd
+        return d, dd, ddd, yi
 
     def _act(self):
         x, y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
@@ -70,10 +72,10 @@ class LookAheadPilot(Autopilot):
         elif f < -epsilon: action = 2
         else: action = 0
         
-        d, dd, ddd = self._danger(dist, ddist, x)
+        d, dd, ddd, yi = self._danger(dist, ddist, x)
         safe_throttle = self.car.specs.safe_turn_speed( \
             max(abs(k), abs(ka)), 0.9) / self.car.specs.v_max
-        if (not d or d and ddd >= 0.0) and v < safe_throttle - epsilon:
+        if (not d or d and not yi and ddd >= 0.0) and v < safe_throttle - epsilon:
             action += 3
         elif dd or (d and ddd < 0.0) or v > safe_throttle + epsilon:
             action += 6
