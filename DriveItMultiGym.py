@@ -138,6 +138,8 @@ class DriveItEnvMulti(gym.Env):
         self.time += dt
         rewards = {}
         exits = []
+        info = {}
+        done = False
 
         for car in self.cars:
             action = actions[car]
@@ -179,6 +181,8 @@ class DriveItEnvMulti(gym.Env):
                 reward += throttle_override_reward * throttle_override
             if abs(y_m) - half_track_width > 0.0:
                 reward = out_reward
+                done = True
+                info['done'] = 'out'
                 exits.append(car)
 
             self.observations[car] = d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0
@@ -186,8 +190,9 @@ class DriveItEnvMulti(gym.Env):
             self.state[car] = (x_m, bias)
 
         # are we done yet?
-        timeout = self.time >= self.time_limit
-        done = timeout or len(exits) > 0 #or out or wrong_way
+        if self.time >= self.time_limit:
+            done = True
+            info['done'] = 'complete'
 
         # collision detection
         if self.car_num > 1:
@@ -201,8 +206,8 @@ class DriveItEnvMulti(gym.Env):
                     # else:
                     #     rewards[car1] = out_reward
                     done = True
+                    info['done'] = 'crash'
 
-        info = { 'done': 'complete' if timeout else 'out' } if done else {}
         return self.observations, rewards, done, info
 
 
