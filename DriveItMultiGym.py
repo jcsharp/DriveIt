@@ -124,7 +124,7 @@ class DriveItEnvMulti(gym.Env):
                 theta -= bias
             else:
                 bias = 0.0
-            self.observations[car] = np.array((odometer, 0.0, theta, v, K, 1.0 if odometer < 0.0 else 0.0))
+            self.observations[car] = odometer, 0.0, theta, v, K, 1.0 if odometer < 0.0 else 0.0
             self.state[car] = (odometer, bias)
         
         return self.observations
@@ -181,7 +181,7 @@ class DriveItEnvMulti(gym.Env):
                 reward = out_reward
                 exits.append(car)
 
-            self.observations[car] = (d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0)
+            self.observations[car] = d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0
             rewards[car] = reward
             self.state[car] = (x_m, bias)
 
