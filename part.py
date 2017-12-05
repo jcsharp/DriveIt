@@ -67,17 +67,19 @@ class Part():
         '''
         x1, y1, th1 = self.get_position()
         x2, y2, th2 = part.get_position()
-        d, alpha = self.distance(x2, y2)
+        d, alpha = self._distance(x1, y1, th1, x2, y2)
         alpha2 = th2 - th1 + alpha 
         bd2 = part.boundary_distance(alpha2)
         return d - bd2, alpha
         
-
     def distance(self, x, y):
+        x1, y1, th1 = self.get_position()
+        return self._distance(x1, y1, th1, x, y)
+
+    def _distance(self, x1, y1, th1, x, y):
         '''
         Calculates the distance and relative angle to the specified location.
         '''
-        x1, y1, th1 = self.get_position()
         dx = x - x1
         dy = y - y1
         dc = math.sqrt(dx ** 2 + dy ** 2)
@@ -86,7 +88,7 @@ class Part():
         return dc - bd, alpha
         
 
-    def boundary_distance(self, alpha):
+    def boundary_distance(self, alpha): #pylint: disable=W0613
         '''
         Calculates the part's boundary distance in the specified direction.
         '''
@@ -94,13 +96,13 @@ class Part():
 
 
     def visible_arc(self, angle):
-        xp, yp, thp = self.get_position()
+        _, _, thp = self.get_position()
         thcs = thp - angle
         return self.boundary_distance(thcs)
 
 
     def is_collided(self, part):
-        dist, angle = self.part_distance(part)
+        dist, _ = self.part_distance(part)
         return dist <= 0.
 
 
@@ -187,10 +189,8 @@ class RectangularPart(Part):
             return w / sin(alpha)
 
 
-    def visible_arc(self, alpha):
-        xp, yp, thp = self.get_position()
-        thcs = thp - alpha
+    def visible_arc(self, angle):
+        _, _, thp = self.get_position()
+        thcs = thp - angle
         appw = max(self.width, self.length * abs(sin(thcs))) / 2.
         return appw
-
-
