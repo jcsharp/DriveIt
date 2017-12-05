@@ -30,6 +30,7 @@ class TruePosition(PositionTrackingBase):
         x, y, theta = self.car.get_position()
         xm, ym, thm = cartesian_to_median(x, y, theta)
         _, _, _, v, K = self.car.state
+        self.position = x, y, xm < 0.0
         return xm, ym, thm, v, K
 
     def reset(self, observation): #pylint: disable=W0613
@@ -105,6 +106,6 @@ class PositionTracking(PositionTrackingBase):
         if pos_adjusted:
             x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
-        self.position = (x, y, checkpoint)
+        self.position = x, y, checkpoint
 
         return x_m, y_m, theta_m, v, K
