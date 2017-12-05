@@ -47,7 +47,7 @@ class BeliefTracking(object):
         for s in car.dist_sensors:
             high.append(s.specs[0])
             low.append(0.0)
-        high, low = np.array(high), np.array(low)
+        high, low = np.array(high, dtype=np.float32), np.array(low, dtype=np.float32)
         self._high = high
         if normalize:
             low  = low / high
