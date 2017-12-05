@@ -38,7 +38,7 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
             cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
             bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
                     for car in cars[1:]]
-            env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit)
+            env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=False)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
