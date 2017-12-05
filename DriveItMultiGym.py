@@ -35,10 +35,11 @@ class DriveItEnvMulti(gym.Env):
     }
 
 
-    def __init__(self, cars=(Car()), time_limit=10, noisy=True):
+    def __init__(self, cars=(Car()), time_limit=10, noisy=True, random_position=True):
         self.cars = cars
         self.time_limit = time_limit
         self.noisy = noisy
+        self.random_position = random_position
         self.car_num = len(cars)
         self.dt = dt
         
@@ -65,11 +66,11 @@ class DriveItEnvMulti(gym.Env):
         return [seed]
 
 
-    def _reset_car(self, i, random_position):
+    def _reset_car(self, i):
 
         car = self.cars[i]
 
-        if random_position:
+        if self.random_position:
             # random position along the track median
             x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
             y_m = self.np_random.uniform(-0.01, 0.01) if self.noisy else 0.0
@@ -79,7 +80,7 @@ class DriveItEnvMulti(gym.Env):
             for j in range(i):
                 d, _ = self.cars[j].distance(x, y)
                 if d < 0.1 + car.length / 2.0:
-                    return self._reset_car(i, random_position)
+                    return self._reset_car(i)
         
             theta, K = median_properties(x_m)
             steer = np.round(K / car.specs.K_max / car.specs.steer_step) \
@@ -102,14 +103,9 @@ class DriveItEnvMulti(gym.Env):
         return car.reset(x, y, theta, steer, throttle, x_m)
         
 
-    def _reset(self, random_position=True):
+    def _reset(self):
         '''
         Resets the simulation.
-
-        By default, the cars are placed at random positions along the race track, 
-        which improves learning.
-
-        If random_position is set to False, the cars are placed evenly on the track median.
         '''
 
         self.time = 0.0
@@ -117,7 +113,7 @@ class DriveItEnvMulti(gym.Env):
         self.state = {}
 
         for i in range(len(self.cars)):
-            _, _, theta, _, _, odometer, v, K = self._reset_car(i, random_position)
+            _, _, theta, _, _, odometer, v, K = self._reset_car(i)
             car = self.cars[i]
             if self.noisy:
                 bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
@@ -289,17 +285,17 @@ class DriveItEnvMulti(gym.Env):
 
 class DriveItEnv(DriveItEnvMulti):
 
-    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True):
+    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True, random_position=True):
         self.car = car
         self.bots = [] if bots is None else bots
         cars = []
         cars.append(car)
         for bot in self.bots:
             cars.append(bot.car)
-        super().__init__(cars, time_limit, noisy)
+        super().__init__(cars, time_limit, noisy, random_position)
 
-    def _reset(self, random_position=True):
-        obs = super()._reset(random_position)
+    def _reset(self):
+        obs = super()._reset()
         for i in range(1, self.car_num):
             self.bots[i-1].reset(obs[self.cars[i]])
         return obs[self.car]

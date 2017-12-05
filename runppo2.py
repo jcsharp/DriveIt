@@ -53,7 +53,7 @@ def create_env(time_limit, seed):
     cars = [Car.HighPerf(Color.green, v_max=2.0), Car.Simple(Color.purple, v_max=1.0)]
     bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
             for car in cars[1:]]
-    env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit)
+    env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=True, random_position=True)
     env.seed(seed)
     # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
     return env
