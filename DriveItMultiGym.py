@@ -51,7 +51,7 @@ class DriveItEnvMulti(gym.Env):
         self.observation_space = spaces.Box(low, high)
 
         fname = path.join(path.dirname(__file__), "track.png")
-        self.track = rendering.Image(fname, 2., 2.)
+        self._init_track(fname, width=2.0, height=2.0)
 
         self._seed()
         self.time = -1.0
@@ -244,14 +244,29 @@ class DriveItEnvMulti(gym.Env):
             return self.track.img.data[pos:pos + 4]
 
 
-    def _track_color(self, x, y, n=0):
+    def _init_track(self, fname, width: float, height: float):
+        self.track = rendering.Image(fname, width, height)
+        self.img_offset = width / 2.0, height / 2.0
+        self.img_scale = self.track.img.width / width, self.track.img.height / height
+
+
+    def _track_to_image_coordinates(self, x, y):
+        ox, oy = self.img_offset
+        scalex, scaley = self.img_scale
+        img_x = math.trunc((x + ox) * scalex)
+        img_y = math.trunc((oy - y) * scaley)
+        return img_x, img_y
+
+    def _track_color(self, x, y):
+        img_x, img_y = self._track_to_image_coordinates(x, y)
+        return self._img_color(img_x, img_y)
+
+    def _track_color_average(self, x, y, n=4):
         '''
-        Gets the track color at the specified coordinates, averaging e pixels around that position.
+        Gets the track color at the specified coordinates, averaging the pixels around that position.
         '''
-        img_x = math.trunc((x + self.track.width / 2) / self.track.width * self.track.img.width)
-        img_y = math.trunc((self.track.height - (y + self.track.height / 2)) \
-            / self.track.height * self.track.img.height)
-        
+        img_x, img_y = self._track_to_image_coordinates(x, y)
+      
         count = 0
         b, g, r, a = 0, 0, 0, 0
         for i in range(img_x - n, img_x + n + 1):
@@ -275,11 +290,8 @@ class DriveItEnvMulti(gym.Env):
         The blueness is the normalized difference between the blue and the red 
         channels of the (simulated) RGB color sensor.
         '''
-        b, _, r, a = self._track_color(x, y, n=1)
-        if a == 0:
-            return 1.0
-        else:
-            return (b - r) / 217
+        b, _, r, _ = self._track_color(x, y)
+        return (b - r) / 217
 
 
 
