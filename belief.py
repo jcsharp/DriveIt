@@ -45,8 +45,8 @@ class BeliefTracking(object):
         self.other_cars = [] if other_cars is None else other_cars
         self.normalize = normalize
         # x_m, y_m, theta_m, v, k, k_t, k_a
-        high = [  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ]
-        low  = [ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ]
+        high = [  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature, 1.0 ]
+        low  = [ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature, 0.0 ]
         self.sensor_index = len(low)
         for s in car.dist_sensors:
             high.append(s.specs[0])
@@ -67,12 +67,12 @@ class BeliefTracking(object):
         self.belief[self.sensor_index:] = self.df.filter(self.dist)
 
     def _augment_pos(self, pos):
-        x_m, y_m, theta_m, v, k = pos
+        x_m, y_m, theta_m, v, k, blue = pos
         k_t = track_curvature(x_m, y_m)
         lhdist = v * self.look_ahead_time * cos(theta_m)
         k_a = curve_ahead(x_m, y_m, lhdist, self.look_ahead_points)
         self._read_sensors()
-        self.belief[:self.sensor_index] = x_m, y_m, theta_m, v, k, k_t, k_a
+        self.belief[:self.sensor_index] = x_m, y_m, theta_m, v, k, k_t, k_a, blue
         if self.normalize:
             return self.belief / self._high
         else:

@@ -60,7 +60,7 @@ class LookAheadPilot(Autopilot):
         return d, dd, ddd, yi
 
     def _act(self):
-        x, y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
+        x, y, th, v, k, kt, ka, blue, *dist = self.belief #pylint: disable=W0612
         dx, dy, dth, dv, dk, dkt, dka, *ddist = self.deltas #pylint: disable=W0612
         ky, kdy, kth, kdth, kka, kdka = self.params
 

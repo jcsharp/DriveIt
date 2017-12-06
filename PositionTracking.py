@@ -18,6 +18,9 @@ class PositionTrackingBase(object):
         low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max ], dtype=np.float32)
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
+        self.observation = ()
+        self.position = ()
+        self.median_position = ()
 
     def reset(self, x_m, observation): raise NotImplementedError
 
@@ -26,26 +29,25 @@ class PositionTrackingBase(object):
 
 class TruePosition(PositionTrackingBase):
 
-    def _get_state(self):
+    def _get_state(self, blue):
         x, y, theta = self.car.get_position()
         xm, ym, thm = cartesian_to_median(x, y, theta)
         _, _, v, K = self.car.state
         self.position = x, y, xm < 0.0
-        return xm, ym, thm, v, K
+        self.median_position = xm, ym, thm
+        return xm, ym, thm, v, K, blue
 
     def reset(self, x_m, observation): #pylint: disable=W0613
-        return self._get_state()
+        return self._get_state(observation[-1])
 
     def update(self, action, observation, dt): #pylint: disable=W0613
-        return self._get_state()
+        return self._get_state(observation[-1])
 
 
 class PositionTracking(PositionTrackingBase):
 
     def __init__(self, car):
         super().__init__(car)
-        self.observation = ()
-        self.position = ()
 
     def reset(self, x_m, observation):
         blue, theta, v, K, checkpoint = observation #pylint: disable=W0612
@@ -53,11 +55,12 @@ class PositionTracking(PositionTrackingBase):
         theta_m = track_tangent(x_m) - theta
         self.observation = observation
         self.position = x, y, checkpoint
-        return x_m, 0., theta_m, v, K
+        self.median_position = x_m, 0.0, theta_m
+        return x_m, 0.0, theta_m, v, K, blue
 
     def update(self, action, observation, dt): #pylint: disable=W0613
         x_, y_, checkpoint_ = self.position
-        _, theta, v, K, checkpoint = observation
+        blue, theta, v, K, checkpoint = observation
         _, theta_, v_, K_, _ = self.observation
         self.observation = observation
 
@@ -107,5 +110,6 @@ class PositionTracking(PositionTrackingBase):
             x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
         self.position = x, y, checkpoint
+        self.median_position = x_m, y_m, theta_m
 
-        return x_m, y_m, theta_m, v, K
+        return x_m, y_m, theta_m, v, K, blue
