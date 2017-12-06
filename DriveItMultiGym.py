@@ -124,7 +124,7 @@ class DriveItEnvMulti(gym.Env):
         return self.observations
 
 
-    def _multi_step(self, actions):
+    def _step(self, actions):
 
         if len(actions) != self.car_num:
             raise ValueError('Wrong number of actions.')
@@ -318,7 +318,7 @@ class DriveItEnv(DriveItEnvMulti):
         for i in range(1, self.car_num):
             actions[self.cars[i]] = self.bots[i-1].act()
 
-        obs, rewards, done, info = super()._multi_step(actions)
+        obs, rewards, done, info = super()._step(actions)
         
         for i in range(1, self.car_num):
             self.bots[i-1].observe(obs[self.cars[i]], dt)
