@@ -116,12 +116,12 @@ class DriveItEnvMulti(gym.Env):
             _, _, theta, _, _, odometer, v, K = self._reset_car(i)
             car = self.cars[i]
             if self.noisy:
-                bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
-                theta -= bias
+                compass_bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
+                theta -= compass_bias
             else:
-                bias = 0.0
+                compass_bias = 0.0
             self.observations[car] = odometer, 0.0, theta, v, K, 1.0 if odometer < 0.0 else 0.0
-            self.state[car] = (odometer, bias)
+            self.state[car] = (odometer, compass_bias)
         
         return self.observations
 
@@ -139,7 +139,7 @@ class DriveItEnvMulti(gym.Env):
 
         for car in self.cars:
             action = actions[car]
-            x_m_, bias = self.state[car]
+            x_m_, compass_bias = self.state[car]
 
             # move the car
             x, y, theta, _, _, d, v, K_hat, throttle_override = car.step(action, dt)
@@ -149,8 +149,8 @@ class DriveItEnvMulti(gym.Env):
 
             if self.noisy:
                 # add observation noise
-                bias = clip(self.np_random.normal(bias, compass_deviation), -max_compass_bias, max_compass_bias)
-                theta_hat = theta + bias
+                compass_bias = clip(self.np_random.normal(compass_bias, compass_deviation), -max_compass_bias, max_compass_bias)
+                theta_hat = theta + compass_bias
                 v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * velocity_deviation)
                 v_hat = v + v_noise
                 d += v_noise * dt
@@ -183,7 +183,7 @@ class DriveItEnvMulti(gym.Env):
 
             self.observations[car] = d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0
             rewards[car] = reward
-            self.state[car] = (x_m, bias)
+            self.state[car] = (x_m, compass_bias)
 
         # are we done yet?
         if self.time >= self.time_limit:
