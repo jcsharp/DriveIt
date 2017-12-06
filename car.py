@@ -192,7 +192,8 @@ class Car(RectangularPart):
         '''
         Gets the safe throttle value based on the specified steering.
         '''
-        return self.specs.safe_turn_speed(steer) / self.specs.v_max
+        safe = self.specs.safe_turn_speed(steer) / self.specs.v_max
+        return np.round(safe / self.specs.throttle_step) * self.specs.throttle_step
 
 
     def init_rendering(self, viewer):
