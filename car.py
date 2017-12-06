@@ -82,40 +82,36 @@ class Car(RectangularPart):
         self.add_part(sensor, x, y, theta)
 
 
-    def reset(self, x=0.0, y=0.0, theta=0.0, steer=0.0, throttle=0.0, odometer=0.0, v=None):
+    def reset(self, x=0.0, y=0.0, theta=0.0, steer=0.0, throttle=0.0, v=None):
         if v is None:
             v = self.specs.v_max * throttle
         K = self.specs.K_max * steer
 
         self.set_position(x, y, theta)
-        self.state = (steer, throttle, odometer, v, K)
+        self.state = steer, throttle, v, K
+        self.bias = 0.0, 0.0
         if self.breadcrumb != None:
             self.breadcrumb.v.clear()
 
-        return x, y, theta, steer, throttle, odometer, v, K
-
-
-    def reset_odometer(self, value):
-        steer, throttle, d, v, K = self.state
-        self.state = (steer, throttle, value, v, K)
+        return x, y, theta, steer, throttle, v, K
 
 
     def _dsdt(s, t, a, K_dot):
         '''
         Computes derivatives of state parameters.
         '''
-        x, y, theta, v, K, d = s
+        _, _, theta, v, K = s
         x_dot = v * cos(theta)
         y_dot = v * sin(theta)
         theta_dot = v * K
-        return x_dot, y_dot, theta_dot, a, K_dot, v
+        return x_dot, y_dot, theta_dot, a, K_dot
 
 
-    def _move(x, y, theta, v, K, d, a, K_dot, dt):
-        s = x, y, theta, v, K, d
+    def _move(x, y, theta, v, K, a, K_dot, dt):
+        s = x, y, theta, v, K
         I = rk4(Car._dsdt, s, [0.0, dt], a, K_dot)
-        x, y, theta, v, K, d = I[1]
-        return x, y, theta, v, K, d
+        x, y, theta, v, K = I[1]
+        return x, y, theta, v, K
 
 
     def step(self, action, dt):
@@ -125,7 +121,7 @@ class Car(RectangularPart):
 
         # initial state
         x_, y_, theta_ = self.get_position()
-        steer_, throttle_, d_, v_, K_ = self.state
+        steer_, throttle_, v_, K_ = self.state
 
         # action
         ds = steer_actions[action] * self.specs.steer_step
@@ -143,12 +139,14 @@ class Car(RectangularPart):
 
         # add mechanical noise
         if self.noisy:
+            steer_bias, throttle_bias = self.bias
             if ds != 0.0:
                 steer_bias = self.np_random.uniform(-max_steer_bias, max_steer_bias)
             if dp != 0.0:
                 throttle_bias = self.np_random.uniform(-max_throttle_bias, max_throttle_bias)
             K = K_hat + self.specs.K_max * steer_bias
             v = v_hat * (1 + throttle_bias)
+            self.bias = steer_bias, throttle_bias
         else:
             K = K_hat
             v = v_hat
@@ -156,12 +154,12 @@ class Car(RectangularPart):
         # get new state
         a = (v - v_) / dt
         K_dot = (K - K_) / dt
-        x, y, theta, _, _, d = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
+        x, y, theta, _, _ = Car._move(x_, y_, theta_, v_, K_, a, K_dot, dt)
 
         self.set_position(x, y, theta)
-        self.state = (steer, throttle, d, v, K)
+        self.state = steer, throttle, v, K
 
-        return x, y, theta, steer, throttle, d, v, K_hat, throttle_override
+        return x, y, theta, steer, throttle, v, K_hat, throttle_override
 
 
     def detect_collision(self, cars):

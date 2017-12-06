@@ -19,7 +19,7 @@ class PositionTrackingBase(object):
         self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
 
-    def reset(self, observation): raise NotImplementedError
+    def reset(self, x_m, observation): raise NotImplementedError
 
     def update(self, action, observation, dt): raise NotImplementedError
 
@@ -29,11 +29,11 @@ class TruePosition(PositionTrackingBase):
     def _get_state(self):
         x, y, theta = self.car.get_position()
         xm, ym, thm = cartesian_to_median(x, y, theta)
-        _, _, _, v, K = self.car.state
+        _, _, v, K = self.car.state
         self.position = x, y, xm < 0.0
         return xm, ym, thm, v, K
 
-    def reset(self, observation): #pylint: disable=W0613
+    def reset(self, x_m, observation): #pylint: disable=W0613
         return self._get_state()
 
     def update(self, action, observation, dt): #pylint: disable=W0613
@@ -47,23 +47,23 @@ class PositionTracking(PositionTrackingBase):
         self.observation = ()
         self.position = ()
 
-    def reset(self, observation):
-        d, _, theta, v, K, _ = observation
-        x, y, _ = median_to_cartesian(d, 0.0, 0.0)
-        theta_m = track_tangent(d) - theta
+    def reset(self, x_m, observation):
+        blue, theta, v, K, checkpoint = observation #pylint: disable=W0612
+        x, y, _ = median_to_cartesian(x_m, 0.0, 0.0)
+        theta_m = track_tangent(x_m) - theta
         self.observation = observation
-        self.position = x, y, d < 0.0
-        return d, 0., theta_m, v, K
+        self.position = x, y, checkpoint
+        return x_m, 0., theta_m, v, K
 
     def update(self, action, observation, dt): #pylint: disable=W0613
         x_, y_, checkpoint_ = self.position
-        d, blue, theta, v, K, checkpoint = observation #pylint: disable=W0612
-        d_, blue_, theta_, v_, K_, _ = self.observation #pylint: disable=W0612
+        _, theta, v, K, checkpoint = observation
+        _, theta_, v_, K_, _ = self.observation
         self.observation = observation
 
         a = (v - v_) / dt
         K_dot = (K - K_) / dt
-        x, y, _, _, _, _ = Car._move(x_, y_, theta_, v_, K_, d_, a, K_dot, dt)
+        x, y, _, _, _ = Car._move(x_, y_, theta_, v_, K_, a, K_dot, dt)
 
         x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 

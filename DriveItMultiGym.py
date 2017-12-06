@@ -100,7 +100,7 @@ class DriveItEnvMulti(gym.Env):
         throttle = self.np_random.uniform(0.0, car.safe_throttle(steer)) \
             if self.noisy else car.safe_throttle(steer)
 
-        return car.reset(x, y, theta, steer, throttle, x_m)
+        return x_m, car.reset(x, y, theta, steer, throttle)
         
 
     def _reset(self):
@@ -113,15 +113,17 @@ class DriveItEnvMulti(gym.Env):
         self.state = {}
 
         for i in range(len(self.cars)):
-            _, _, theta, _, _, odometer, v, K = self._reset_car(i)
+            x_m, (x, y, theta, _, _, v, K) = self._reset_car(i)
             car = self.cars[i]
             if self.noisy:
                 compass_bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
                 theta -= compass_bias
             else:
                 compass_bias = 0.0
-            self.observations[car] = odometer, 0.0, theta, v, K, 1.0 if odometer < 0.0 else 0.0
-            self.state[car] = (odometer, compass_bias)
+            blue = self._blueness(x, y)
+            checkpoint = 1.0 if x_m < 0.0 else 0.0
+            self.observations[car] = blue, theta, v, K, checkpoint
+            self.state[car] = x_m, compass_bias, 0 #laps
         
         return self.observations
 
@@ -139,10 +141,10 @@ class DriveItEnvMulti(gym.Env):
 
         for car in self.cars:
             action = actions[car]
-            x_m_, compass_bias = self.state[car]
+            x_m_, compass_bias, laps = self.state[car]
 
             # move the car
-            x, y, theta, _, _, d, v, K_hat, throttle_override = car.step(action, dt)
+            x, y, theta, _, _, v, K_hat, throttle_override = car.step(action, dt)
 
             # read sensors
             blue = self._blueness(x, y)
@@ -153,23 +155,22 @@ class DriveItEnvMulti(gym.Env):
                 theta_hat = theta + compass_bias
                 v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * velocity_deviation)
                 v_hat = v + v_noise
-                d += v_noise * dt
             else:
                 theta_hat = theta
                 v_hat = v
 
             # check progress along the track
             x_m, y_m, _ = cartesian_to_median(x, y, theta)
-            lap = x_m > 0.0 and x_m_ < 0.0
-            checkpoint = x_m < 0.0 and x_m_ > 0.0
+            lap_threshold = x_m >= 0.0 and x_m_ < 0.0
+            checkpoint_threshold = x_m < 0.0 and x_m_ > 0.0
+            checkpoint = 1.0 if x_m < 0.0 else 0.0
             dx_m = x_m - x_m_
-            if lap:
-                d = 0.0
-                car.reset_odometer(d)
-            if checkpoint:
+            if lap_threshold:
+                laps += 1
+                info['threshold'] = 'lap'
+            if checkpoint_threshold:
                 dx_m += lap_median_length
-                d = -checkpoint_median_length
-                car.reset_odometer(d)
+                info['threshold'] = 'checkpoint'
 
             # reward progress
             reward = dx_m
@@ -181,9 +182,9 @@ class DriveItEnvMulti(gym.Env):
                 info['done'] = 'out'
                 exits.append(car)
 
-            self.observations[car] = d, blue, theta_hat, v_hat, K_hat, 1.0 if x_m < 0.0 else 0.0
+            self.observations[car] = blue, theta_hat, v_hat, K_hat, checkpoint
             rewards[car] = reward
-            self.state[car] = (x_m, compass_bias)
+            self.state[car] = x_m, compass_bias, laps
 
         # are we done yet?
         if self.time >= self.time_limit:
@@ -203,6 +204,9 @@ class DriveItEnvMulti(gym.Env):
                     #     rewards[car1] = out_reward
                     done = True
                     info['done'] = 'crash'
+
+        if done:
+            info['laps'] = laps
 
         return self.observations, rewards, done, info
 
@@ -297,7 +301,7 @@ class DriveItEnv(DriveItEnvMulti):
     def _reset(self):
         obs = super()._reset()
         for i in range(1, self.car_num):
-            self.bots[i-1].reset(obs[self.cars[i]])
+            self.bots[i-1].reset(self.state[self.cars[i]][0], obs[self.cars[i]])
         return obs[self.car]
 
     def _step(self, action):
