@@ -157,7 +157,7 @@ class DriveItEnvMulti(gym.Env):
 
             # check progress along the track
             x_m, y_m, _ = cartesian_to_median(x, y, theta)
-            lap_threshold = x_m > 0.0 and x_m_ < 0.0
+            lap_threshold = x_m > 0.0 and x_m_ <= 0.0
             checkpoint_threshold = x_m < 0.0 and x_m_ > 0.0
             checkpoint = 1.0 if x_m < 0.0 else 0.0
             dx_m = x_m - x_m_
