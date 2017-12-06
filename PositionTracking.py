@@ -35,7 +35,7 @@ class TruePosition(PositionTrackingBase):
         _, _, v, K = self.car.state
         self.position = x, y, xm < 0.0
         self.median_position = xm, ym, thm
-        return xm, ym, thm, v, K, blue
+        return xm, ym, thm, v, K
 
     def reset(self, x_m, observation): #pylint: disable=W0613
         return self._get_state(observation[-1])
@@ -56,11 +56,11 @@ class PositionTracking(PositionTrackingBase):
         self.observation = observation
         self.position = x, y, checkpoint
         self.median_position = x_m, 0.0, theta_m
-        return x_m, 0.0, theta_m, v, K, blue
+        return x_m, 0.0, theta_m, v, K
 
     def update(self, action, observation, dt): #pylint: disable=W0613
         x_, y_, checkpoint_ = self.position
-        blue, theta, v, K, checkpoint = observation
+        _, theta, v, K, checkpoint = observation
         _, theta_, v_, K_, _ = self.observation
         self.observation = observation
 
@@ -112,4 +112,4 @@ class PositionTracking(PositionTrackingBase):
         self.position = x, y, checkpoint
         self.median_position = x_m, y_m, theta_m
 
-        return x_m, y_m, theta_m, v, K, blue
+        return x_m, y_m, theta_m, v, K
