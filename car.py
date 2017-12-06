@@ -179,17 +179,6 @@ class Car(RectangularPart):
         return None
 
 
-    def get_velocity(self):
-        v = self.state[3]
-        th = self._position[2]
-        return v, th
-
-
-    def set_velocity(self, v):
-        steer, throttle, d, _, K = self.state
-        self.state = steer, throttle, d, v, K
-
-
     def _safe_throttle_move(self, steer, throttle, desired_change):
         '''
         Moves the throttle by the desired amout or according to the safe speed limit.
@@ -199,6 +188,7 @@ class Car(RectangularPart):
         if desired_throttle < safe:
             safe = clip(desired_throttle, 0.0, 1.0)
         return safe, desired_throttle - safe
+
 
     def safe_throttle(self, steer):
         '''
