@@ -23,9 +23,9 @@ dt = 1.0 / fps
 out_reward = -checkpoint_median_length
 throttle_override_reward = -dt
 
-max_compass_bias = 0.02
-compass_deviation = 0.0002
-velocity_deviation = 0.003
+max_compass_bias = 0.017
+compass_deviation = max_compass_bias / 100.0
+velocity_deviation = 0.001
 
 
 class DriveItEnvMulti(gym.Env):
