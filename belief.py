@@ -25,7 +25,7 @@ class BeliefDriveItEnv(DriveItEnv):
 
     def _reset(self):
         obs = super()._reset()
-        x_m = self.state[self.car]
+        x_m = self.state[self.car][0]
         return self.tracker.reset(x_m, obs)
 
     def _step(self, action):

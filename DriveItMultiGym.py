@@ -74,7 +74,7 @@ class DriveItEnvMulti(gym.Env):
             x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
             # keep 10 cm distance between cars
             for j in range(i):
-                d = abs(x_m - self.state[self.cars[i]][0])
+                d = abs(x_m - self.state[self.cars[j]][0])
                 if d < 0.1 + car.length / 2.0:
                     return self._reset_car(i)
         else:
