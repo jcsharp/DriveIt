@@ -16,7 +16,6 @@ from gym.envs.classic_control import rendering
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
 max_steer_bias = 0.1
-steer_bias_velocity = 0.001
 max_throttle_bias = 0.1
 
 
@@ -90,12 +89,6 @@ class Car(RectangularPart):
 
         self.set_position(x, y, theta)
         self.state = (steer, throttle, odometer, v, K)
-        if self.noisy:
-            self.bias = (
-                self.np_random.uniform(-max_steer_bias, max_steer_bias),
-                self.np_random.uniform(-max_throttle_bias, max_throttle_bias))
-        else:
-            self.bias = (0.0, 0.0)
         if self.breadcrumb != None:
             self.breadcrumb.v.clear()
 
@@ -133,7 +126,6 @@ class Car(RectangularPart):
         # initial state
         x_, y_, theta_ = self.get_position()
         steer_, throttle_, d_, v_, K_ = self.state
-        steer_bias, throttle_bias = self.bias
 
         # action
         ds = steer_actions[action] * self.specs.steer_step
@@ -152,7 +144,7 @@ class Car(RectangularPart):
         # add mechanical noise
         if self.noisy:
             if ds != 0.0:
-                steer_bias = clip(self.np_random.normal(steer_bias, steer_bias_velocity), -max_steer_bias, max_steer_bias)
+                steer_bias = self.np_random.uniform(-max_steer_bias, max_steer_bias)
             if dp != 0.0:
                 throttle_bias = self.np_random.uniform(-max_throttle_bias, max_throttle_bias)
             K = K_hat + self.specs.K_max * steer_bias
@@ -168,7 +160,6 @@ class Car(RectangularPart):
 
         self.set_position(x, y, theta)
         self.state = (steer, throttle, d, v, K)
-        self.bias = (steer_bias, throttle_bias)
 
         return x, y, theta, steer, throttle, d, v, K_hat, throttle_override
 
