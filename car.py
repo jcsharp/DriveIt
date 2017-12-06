@@ -74,6 +74,8 @@ class Car(RectangularPart):
     def set_noise(self, noisy, np_random):
         self.noisy = noisy
         self.np_random = np_random
+        for s in self.dist_sensors:
+            s.set_random(np_random)
 
 
     def add_dist_sensor(self, sensor, x, y, theta):

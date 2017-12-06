@@ -17,6 +17,7 @@ class DistanceSensor(Part):
     def __init__(self, range_max, range_min, cone, precision):
         Part.__init__(self)
         self.specs = (range_max, range_min, cone, precision)
+        self.np_random = np.random
 
 
     def long_range():
@@ -24,6 +25,10 @@ class DistanceSensor(Part):
 
     def short_range():
         return DistanceSensor(0.25, 0.01, 25 / 360. * pi, 0.001)
+
+
+    def set_random(self, np_random):
+        self.np_random = np_random
 
 
     def read(self, parts):
@@ -41,7 +46,7 @@ class DistanceSensor(Part):
                     if abs(alpha) - arc <= cone:
                         dist = part_dist
 
-        dist = np.random.normal(dist, precision)
+        dist =self.np_random.normal(dist, precision)
 
         if dist < range_min:
             return (range_min - dist) * range_max
