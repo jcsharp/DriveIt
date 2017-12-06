@@ -15,8 +15,8 @@ from gym.envs.classic_control import rendering
 
 steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
 throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
-max_steer_bias = 0.1
-max_throttle_bias = 0.1
+max_steer_bias = 0.05
+max_throttle_bias = 0.05
 
 
 class CarSpecifications():
