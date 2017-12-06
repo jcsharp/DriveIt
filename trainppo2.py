@@ -35,7 +35,7 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
 
     def make_env(rank):
         def env_fn():
-            cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0), Car.Simple(v_max=1.0)]
+            cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
             bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
                     for car in cars[1:]]
             env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=True, random_position=True)
