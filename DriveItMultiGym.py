@@ -67,38 +67,34 @@ class DriveItEnvMulti(gym.Env):
 
 
     def _reset_car(self, i):
-
         car = self.cars[i]
 
         if self.random_position:
             # random position along the track median
             x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
-            y_m = self.np_random.uniform(-0.01, 0.01) if self.noisy else 0.0
-            x, y, _ = median_to_cartesian(x_m, y_m, 0.0)
-        
             # keep 10 cm distance between cars
             for j in range(i):
-                d, _ = self.cars[j].distance(x, y)
+                d = abs(x_m - self.state[car][0])
                 if d < 0.1 + car.length / 2.0:
                     return self._reset_car(i)
-        
-            theta, K = median_properties(x_m)
-            steer = np.round(K / car.specs.K_max / car.specs.steer_step) \
-                * car.specs.steer_step
-        
-            if self.noisy:
-                theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
-                steer += self.np_random.uniform(-1, 1) * car.specs.steer_step
-                    
         else:
             space = lap_median_length / len(self.cars)
-            x_m = wrap(i * space, -checkpoint_median_length, checkpoint_median_length)
-            x, y, _ = median_to_cartesian(x_m, 0.0, 0.0)
-            theta, K = median_properties(x_m)
-            steer = K / car.specs.K_max
+            x_m = wrap(i * space, -checkpoint_median_length, checkpoint_median_length) - car.length / 2.0
+
+        y_m = 0.0
+        theta, K = median_properties(x_m)
+        steer = np.round(K / car.specs.K_max / car.specs.steer_step) * car.specs.steer_step
+
+        if self.noisy:
+            y_m += self.np_random.uniform(-0.01, 0.01)
+            theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
+            steer += self.np_random.choice((-1, 0, 1)) * car.specs.steer_step
 
         throttle = self.np_random.uniform(0.0, car.safe_throttle(steer)) \
             if self.noisy else car.safe_throttle(steer)
+        throttle = np.round(throttle / car.specs.throttle_step) * car.specs.throttle_step
+
+        x, y, _ = median_to_cartesian(x_m, y_m, 0.0)
 
         return x_m, car.reset(x, y, theta, steer, throttle)
         
@@ -161,7 +157,7 @@ class DriveItEnvMulti(gym.Env):
 
             # check progress along the track
             x_m, y_m, _ = cartesian_to_median(x, y, theta)
-            lap_threshold = x_m >= 0.0 and x_m_ < 0.0
+            lap_threshold = x_m > 0.0 and x_m_ < 0.0
             checkpoint_threshold = x_m < 0.0 and x_m_ > 0.0
             checkpoint = 1.0 if x_m < 0.0 else 0.0
             dx_m = x_m - x_m_
