@@ -27,10 +27,10 @@ def load_model(model_file, checkpoint_path):
     return model
 
 
-def render_one(model, time_limit, nenvs, nframes, seed, record=False):
+def render_one(model, time_limit, nbots, nenvs, nframes, seed, record=False):
     from vec_frame_stack_1 import VecFrameStack
 
-    env0 = create_env(time_limit, seed)
+    env0 = create_env(time_limit, nbots, seed)
     env = VecFrameStack(env0, nframes)
     obs = np.zeros((nenvs,) + env.observation_space.shape)
 
@@ -54,11 +54,12 @@ def render_one(model, time_limit, nenvs, nframes, seed, record=False):
     print((steps, reward, info))
     input('Done. Press enter to close.')
 
+bot_colors = [Color.orange, Color.purple, Color.navy]
 
-def create_env(time_limit, seed):
-    cars = [Car.HighPerf(Color.green, v_max=2.0), 
-            Car.Simple(Color.orange, v_max=1.0), 
-            Car.Simple(Color.purple, v_max=1.0)]
+def create_env(time_limit, nbots, seed):
+    cars = [Car.HighPerf(Color.green, v_max=2.0)]
+    for i in range(nbots):
+        cars.append(Car.Simple(bot_colors[i], v_max=1.0))
     bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
             for car in cars[1:]]
     env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=True, random_position=True)
@@ -66,19 +67,19 @@ def create_env(time_limit, seed):
     # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
     return env
 
-def create_venv(time_limit, nenvs, nframes, seed):
+def create_venv(time_limit, nbots, nenvs, nframes, seed):
     from vec_frame_stack import VecFrameStack
     def make_env(rank):
         def env_fn():
-            return create_env(time_limit, seed + rank)
+            return create_env(time_limit, nbots, seed + rank)
         return env_fn
     env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
     set_global_seeds(seed)
     env = VecFrameStack(env, nframes)
     return env
 
-def run_many(model, time_limit, nenvs, nframes, seed):
-    env = create_venv(time_limit, nenvs, nframes, seed)
+def run_many(model, time_limit, nbots, nenvs, nframes, seed):
+    env = create_venv(time_limit, nbots, nenvs, nframes, seed)
 
     o = env.reset()
     steps = 0
@@ -104,6 +105,7 @@ def main():
     parser.add_argument('-e', '--envs', help='number of environments', type=int, default=8)
     parser.add_argument('-f', '--frames', help='number of frames', type=int, default=16)
     parser.add_argument('-t', '--time-limit', type=int, default=180)
+    parser.add_argument('-n', '--number-bots', type=int, default=2)
     parser.add_argument('-r', '--render', action='store_true', default=False)
     parser.add_argument('-v', '--video-record', action='store_true', default=False)
     args = parser.parse_args()
@@ -112,12 +114,14 @@ def main():
     model_file = osp.join(model_dir, args.model)
     checkpoint_path = osp.join(model_dir, 'checkpoints', args.checkpoint)
 
+    assert(args.number_bots <= len(bot_colors))
+
     with tf.Session() as sess:
         model = load_model(model_file, checkpoint_path)
         if args.render:
-            render_one(model, args.time_limit, args.envs, args.frames, args.seed, args.video_record)
+            render_one(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed, args.video_record)
         else:
-            run_many(model, args.time_limit, args.envs, args.frames, args.seed)
+            run_many(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed)
 
         sess.close()
 
