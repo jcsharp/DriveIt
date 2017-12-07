@@ -19,6 +19,8 @@ from DriveItCircuit import * #pylint: disable=W0401,W0614
 fps = 60.0
 dt = 1.0 / fps
 
+enable_color_sensor = False
+
 out_reward = -checkpoint_median_length
 throttle_override_reward = -dt
 
@@ -311,10 +313,11 @@ class DriveItEnvMulti(gym.Env):
         The blueness is the normalized difference between the blue and the red 
         channels of the (simulated) RGB color sensor.
         '''
+        if not enable_color_sensor: return 0.0
         c = self._track_color(x, y)
-        if c is None: return 0.
+        if c is None: return 0.0
         b, _, r, _ = c
-        return (b - r) / 217.
+        return (b - r) / 217.0
 
 
 
