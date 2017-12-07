@@ -39,6 +39,9 @@ class Autopilot(object):
 def ReflexPilot(car, other_cars):
     return LookAheadPilot(car, other_cars, TruePosition, kka=1.0, kdka=1.0)
 
+def SharpPilot(car, other_cars):
+    return LookAheadPilot(car, other_cars, TruePosition)
+
 class LookAheadPilot(Autopilot):
     def __init__(self, car, other_cars=None, tracker_type=PositionTracking,
                  ky=3.0, kdy=10.0, 
