@@ -36,6 +36,7 @@ class DriveItEnvMulti(gym.Env):
 
 
     def __init__(self, cars=(Car()), time_limit=10, noisy=True, random_position=True):
+        assert len(cars) <= 4, 'Maximum number of cars is 4'
         self.cars = cars
         self.time_limit = time_limit
         self.noisy = noisy
@@ -66,35 +67,50 @@ class DriveItEnvMulti(gym.Env):
         return [seed]
 
 
+    def is_clear(self, car, x, y, i):
+        # keep 2 car length distance in front of cars (3 measuring from the car centers)
+        min_dist, max_angle = 3.0 * car.length, pi / 4.0 + 0.05
+        for j in range(i):
+            d, alpha = self.cars[j].distance(x, y)
+            if d < car.length or (d < min_dist and abs(alpha) < max_angle):
+                return False
+            d, alpha = car.part_distance(self.cars[j])
+            if d < min_dist and abs(alpha) < max_angle:
+                return False
+        return True
+        
+
     def _reset_car(self, i):
         car = self.cars[i]
 
+        y_m, theta_m = 0.0, 0.0
+        if self.noisy:
+            y_m += self.np_random.uniform(-0.01, 0.01)
+            theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0)
+        
         if self.random_position:
-            # random position along the track median
-            x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
-            # keep 2 car length distance between cars (3 measuring from the car centers)
-            for j in range(i):
-                d = abs(x_m - self.state[self.cars[j]][0])
-                if d < 3.0 * car.length:
-                    return self._reset_car(i)
+            k = 0
+            while True:
+                # random position along the track median
+                x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
+                x, y, theta = median_to_cartesian(x_m, y_m, theta_m)
+                car.set_position(x, y, theta)
+                if self.is_clear(car, x, y, i): break
+                k += 1
+                assert k < 1000, 'Failed to keep safe distance between cars'
         else:
             space = lap_median_length / len(self.cars)
             x_m = wrap(i * space, -checkpoint_median_length, checkpoint_median_length) - car.length / 2.0
+            x, y, theta = median_to_cartesian(x_m, y_m, theta_m)
 
-        y_m = 0.0
-        theta, K = median_properties(x_m)
-        steer = np.round(K / car.specs.K_max / car.specs.steer_step) * car.specs.steer_step
+        K = track_curvature(x_m, y_m)
+        steer = car.specs.curvature_steer(K)
+        throttle = car.safe_throttle(steer)
 
         if self.noisy:
-            y_m += self.np_random.uniform(-0.01, 0.01)
-            theta += self.np_random.uniform(-pi / 36.0, pi / 36.0)
-            steer += self.np_random.choice((-1, 0, 1)) * car.specs.steer_step
-
-        throttle = self.np_random.uniform(0.0, car.safe_throttle(steer)) \
-            if self.noisy else car.safe_throttle(steer)
-        throttle = np.round(throttle / car.specs.throttle_step) * car.specs.throttle_step
-
-        x, y, _ = median_to_cartesian(x_m, y_m, 0.0)
+            steer += clip(self.np_random.choice((-1, 0, 1)) * car.specs.steer_step, -1.0, 1.0)
+            throttle = self.np_random.random_integers(
+                0, throttle / car.specs.throttle_step) * car.specs.throttle_step
 
         return x_m, car.reset(x, y, theta, steer, throttle)
         
