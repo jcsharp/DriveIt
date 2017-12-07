@@ -70,3 +70,38 @@ class DistanceSensor(Part):
         cone._color.vec4 = (1, 0, 0, 0.3)
 
         return [sensor, cone]
+
+
+class LidarSensor(Part):
+
+    def __init__(self, range_max, distance_resolution=0.001, angular_resolution=0.01):
+        Part.__init__(self)
+        self.specs = (range_max, distance_resolution, angular_resolution)
+        self.noisy = True
+        self.np_random = np.random
+
+    def set_noise(self, noisy, np_random):
+        self.noisy = noisy
+        self.np_random = np_random
+
+    def read(self, parts):
+        range_max, distance_resolution, angular_resolution = self.specs
+        dist = []
+        for part_dist, alpha, part in self.part_distances(parts):
+            if part == self.parent: continue
+            if part_dist <= range_max:
+                if self.noisy:
+                    part_dist =self.np_random.normal(part_dist, distance_resolution)
+                    alpha =self.np_random.normal(alpha, angular_resolution)
+                dist.append((part_dist, alpha))
+        return dist
+
+    def get_geometry(self):
+        r = 0.025
+        frame = rendering.make_circle(r, res=12, filled=True)
+        frame.set_color(0.4, 0.4, 0.4)
+        sensor = rendering.make_circle(r, res=12, filled=False)
+        sensor.set_linewidth(2)
+        sensor.set_color(1.0, 0.0, 0.0)
+
+        return [frame, sensor]
