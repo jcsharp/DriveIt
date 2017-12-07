@@ -72,10 +72,10 @@ class DriveItEnvMulti(gym.Env):
         if self.random_position:
             # random position along the track median
             x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
-            # keep 10 cm distance between cars
+            # keep 2 car length distance between cars (3 measuring from the car centers)
             for j in range(i):
                 d = abs(x_m - self.state[self.cars[j]][0])
-                if d < 0.1 + car.length / 2.0:
+                if d < 3.0 * car.length:
                     return self._reset_car(i)
         else:
             space = lap_median_length / len(self.cars)
