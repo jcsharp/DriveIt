@@ -104,13 +104,16 @@ class DriveItEnvMulti(gym.Env):
             x, y, theta = median_to_cartesian(x_m, y_m, theta_m)
 
         K = track_curvature(x_m, y_m)
+        throttle = 0.0
         steer = car.specs.curvature_steer(K)
-        throttle = car.safe_throttle(steer)
-
         if self.noisy:
             steer += clip(self.np_random.choice((-1, 0, 1)) * car.specs.steer_step, -1.0, 1.0)
-            throttle = self.np_random.random_integers(
-                0, throttle / car.specs.throttle_step) * car.specs.throttle_step
+
+        if self.random_position:
+            throttle = car.safe_throttle(steer)
+            if self.noisy:
+                throttle = self.np_random.random_integers(
+                    0, throttle / car.specs.throttle_step) * car.specs.throttle_step
 
         return x_m, car.reset(x, y, theta, steer, throttle)
         
