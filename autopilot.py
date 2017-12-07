@@ -52,15 +52,15 @@ class LookAheadPilot(Autopilot):
 
     def _danger(self, dist, ddist, x):
         d, dd, ddd, yi = False, False, 1.0, False
-        if x < 0.0 and x > -1.0:
+        if x < 0.0 and x > -0.2:
             yi = True
             if dist[0] < 0.6:
                 d, dd = True, True
         for i in range(0, min(3, len(dist))):
             ddd = min(ddd, ddist[i])
-            if dist[i] < (0.4 if i == 0 else 0.95):
+            if dist[i] < (0.4 if i == 0 else 0.8):
                 d = True
-                if yi or dist[i] < (0.25 if i == 0 else 0.6):
+                if yi or dist[i] < (0.3 if i == 0 else 0.6):
                     dd = True
                 
         return d, dd, ddd, yi
