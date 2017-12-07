@@ -37,6 +37,13 @@ class CarSpecifications():
         if steer == 0.0: return self.v_max
         safe = sqrt(self.max_accel / self.K_max / abs(steer)) * margin
         return min(self.v_max, safe)
+
+    def curvature_steer(self, K):
+        '''
+        Get the steering position for the specified curvature.
+        '''
+        return clip(np.round(K / self.K_max / self.steer_step) * self.steer_step, -1.0, 1.0)
+
         
 
 class Car(RectangularPart):
