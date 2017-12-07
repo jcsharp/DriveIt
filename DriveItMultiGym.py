@@ -312,8 +312,10 @@ class DriveItEnvMulti(gym.Env):
         The blueness is the normalized difference between the blue and the red 
         channels of the (simulated) RGB color sensor.
         '''
-        b, _, r, _ = self._track_color(x, y)
-        return (b - r) / 217
+        c = self._track_color(x, y)
+        if c is None: return 0.
+        b, _, r, _ = c
+        return (b - r) / 217.
 
 
 
