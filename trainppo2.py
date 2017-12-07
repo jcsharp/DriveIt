@@ -5,7 +5,7 @@ import argparse
 from datetime import datetime
 from belief import BeliefDriveItEnv
 from car import Car
-from autopilot import ReflexPilot
+from autopilot import ReflexPilot, SharpPilot
 from PositionTracking import TruePosition
 import tensorflow as tf
 from policy import DriveItPolicy
@@ -36,17 +36,21 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
     def make_env(rank):
         def env_fn():
             cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
-            bots = [ReflexPilot(car, cars) for car in cars[1:]]
+            if rank % 2 == 0:
+                bots = [ReflexPilot(car, cars) for car in cars[1:]]
+            else:
+                bots = [SharpPilot(car, cars) for car in cars[1:]]
             env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=True, random_position=True)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
         return env_fn
+
     env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
     set_global_seeds(seed)
     env = VecFrameStack(env, nframes)
-    policy = DriveItPolicy
-    return ppo2.learn(policy=policy, env=env, nsteps=4096, nminibatches=32,
+
+    return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=4096, nminibatches=32,
         lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
         ent_coef=0.00,
         lr=1e-4,
