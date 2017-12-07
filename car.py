@@ -57,8 +57,8 @@ class Car(RectangularPart):
     def HighPerf(color=Color.black, v_max=2.5):
         car = Car(color, CarSpecifications(v_max))
         car.add_dist_sensor(DistanceSensor.long_range(), 0.115, 0.0, 0.0)
-        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, 0.02, pi / 6.0)
-        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, -0.02, -pi / 6.0)
+        car.add_dist_sensor(DistanceSensor.mid_range(), 0.115, 0.02, pi / 6.0)
+        car.add_dist_sensor(DistanceSensor.mid_range(), 0.115, -0.02, -pi / 6.0)
         car.add_dist_sensor(DistanceSensor.short_range(), 0.0, 0.055, pi / 4.0)
         car.add_dist_sensor(DistanceSensor.short_range(), 0.0, -0.055, -pi / 4.0)
         car.add_part(ColorSensor(), 0.0, 0.0, 0.0)

@@ -23,6 +23,9 @@ class DistanceSensor(Part):
     def long_range():
         return DistanceSensor(1., 0.03, 20 / 360. * pi, 0.01)
 
+    def mid_range():
+        return DistanceSensor(0.50, 0.01, 25 / 360. * pi, 0.002)
+
     def short_range():
         return DistanceSensor(0.25, 0.01, 25 / 360. * pi, 0.001)
 
