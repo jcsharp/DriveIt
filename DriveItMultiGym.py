@@ -16,7 +16,6 @@ from car import Car, steer_actions
 from utils import * #pylint: disable=W0401,W0614
 from DriveItCircuit import * #pylint: disable=W0401,W0614
 
-blue_threshold = 0.9
 fps = 60.0
 dt = 1.0 / fps
 
