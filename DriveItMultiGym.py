@@ -115,8 +115,8 @@ class DriveItEnvMulti(gym.Env):
         if self.random_position:
             throttle = car.safe_throttle(steer)
             if self.noisy:
-                throttle = self.np_random.random_integers(
-                    0, throttle / car.specs.throttle_step) * car.specs.throttle_step
+                throttle = self.np_random.randint(
+                    0, throttle / car.specs.throttle_step + 1) * car.specs.throttle_step
 
         return x_m, car.reset(x, y, theta, steer, throttle)
         
