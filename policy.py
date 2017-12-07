@@ -10,7 +10,7 @@ from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch
 from baselines.common.distributions import make_pdtype
 
 class DriveItPolicy(object):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, hid_size=512, reuse=False): #pylint: disable=W0613
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, hid_size=256, reuse=False): #pylint: disable=W0613
         ob_shape = (nbatch,) + ob_space.shape
         nact = ac_space.n
         X = tf.placeholder(tf.float32, ob_shape, name='obs')
