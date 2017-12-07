@@ -5,7 +5,7 @@ Autopilots for the DriveIt Gym environment.
 """
 import numpy as np
 from belief import BeliefTracking
-from PositionTracking import PositionTracking
+from PositionTracking import PositionTracking, TruePosition
 
 epsilon = 0.05
 
@@ -35,6 +35,9 @@ class Autopilot(object):
 
     def _act(self): raise NotImplementedError
 
+
+def ReflexPilot(car, other_cars):
+    return LookAheadPilot(car, other_cars, TruePosition, kka=1.0, kdka=1.0)
 
 class LookAheadPilot(Autopilot):
     def __init__(self, car, other_cars=None, tracker_type=PositionTracking,

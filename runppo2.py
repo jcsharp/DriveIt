@@ -7,7 +7,7 @@ import tensorflow as tf
 from belief import BeliefDriveItEnv
 from policy import DriveItPolicy
 from car import Car
-from autopilot import LookAheadPilot
+from autopilot import ReflexPilot
 from PositionTracking import TruePosition
 from utils import Color
 
@@ -60,8 +60,7 @@ def create_env(time_limit, nbots, seed):
     cars = [Car.HighPerf(Color.green, v_max=2.0)]
     for i in range(nbots):
         cars.append(Car.Simple(bot_colors[i], v_max=1.0))
-    bots = [LookAheadPilot(car, cars, tracker_type=TruePosition, kka=0.0, kdka=2.0) 
-            for car in cars[1:]]
+    bots = [ReflexPilot(car, cars) for car in cars[1:]]
     env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=True, random_position=True)
     env.seed(seed)
     # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
