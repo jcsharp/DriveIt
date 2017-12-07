@@ -50,17 +50,18 @@ class Car(RectangularPart):
 
     def Simple(color=Color.black, v_max=1.0):
         car = Car(color, CarSpecifications(v_max))
-        car.add_dist_sensor(DistanceSensor(1., 0.03, pi / 4, 0.01), 0.06, 0., 0)
+        car.add_dist_sensor(DistanceSensor(1., 0.03, pi / 4, 0.01), 0.06, 0.0, 0)
         return car
 
 
     def HighPerf(color=Color.black, v_max=2.5):
         car = Car(color, CarSpecifications(v_max))
-        car.add_dist_sensor(DistanceSensor.long_range(), 0.115, 0., 0.)
-        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, 0.02, pi / 6.)
-        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, -0.02, -pi / 6.)
-        car.add_dist_sensor(DistanceSensor.short_range(), 0., 0.055, pi / 4.)
-        car.add_dist_sensor(DistanceSensor.short_range(), 0., -0.055, -pi / 4.)
+        car.add_dist_sensor(DistanceSensor.long_range(), 0.115, 0.0, 0.0)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, 0.02, pi / 6.0)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0.115, -0.02, -pi / 6.0)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0.0, 0.055, pi / 4.0)
+        car.add_dist_sensor(DistanceSensor.short_range(), 0.0, -0.055, -pi / 4.0)
+        car.add_part(ColorSensor(), 0.0, 0.0, 0.0)
         return car
     
     
@@ -222,15 +223,11 @@ class Car(RectangularPart):
         body = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
         body.set_color(1, 1, 1)
 
-        d = 0.015
-        sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
-        sensor.set_color(1, 0, 0)
-
         bumpers = rendering.PolyLine([(l, b), (l, t), (r, t), (r, b)], close=True)
         bumpers.set_linewidth(3)
         bumpers._color.vec4 = self.color
 
-        return [body, sensor, bumpers]
+        return [body, bumpers]
 
 
     def render(self, viewer):
@@ -252,3 +249,10 @@ class SteeringWheel(Part):
         steer.set_color(0, 0, 255)
         return [steer]
 
+
+class ColorSensor(Part):
+    def get_geometry(self):
+        d = 0.015
+        sensor = rendering.FilledPolygon([(-d, -d), (-d, +d), (+d, +d), (+d, -d)])
+        sensor.set_color(1, 0, 0)
+        return [sensor]
