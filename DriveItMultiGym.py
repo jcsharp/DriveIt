@@ -35,12 +35,14 @@ class DriveItEnvMulti(gym.Env):
     }
 
 
-    def __init__(self, cars=(Car()), time_limit=10, noisy=True, random_position=True):
+    def __init__(self, cars=(Car()), time_limit=10, noisy=True, random_position=True, max_speed_deviation=0.0):
         assert len(cars) <= 4, 'Maximum number of cars is 4'
         self.cars = cars
         self.time_limit = time_limit
         self.noisy = noisy
         self.random_position = random_position
+        self.max_speed_deviation = max_speed_deviation
+        self.v_max = [car.specs.v_max for car in cars]
         self.car_num = len(cars)
         self.dt = dt
         
@@ -85,6 +87,7 @@ class DriveItEnvMulti(gym.Env):
 
         y_m, theta_m = 0.0, 0.0
         if self.noisy:
+            car.specs.v_max = self.v_max[i] * (1 - self.np_random.uniform(0, self.max_speed_deviation))
             y_m += self.np_random.uniform(-0.01, 0.01)
             theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0)
         
