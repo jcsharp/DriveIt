@@ -36,12 +36,7 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
     def make_env(rank):
         def env_fn():
             cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
-            bots = []
-            for i in range(1, len(cars)):
-                if (rank + i) % 2 == 1:
-                    bots.append(ReflexPilot(cars[i], cars))
-                else:
-                    bots.append(SharpPilot(cars[i], cars))
+            bots = [ReflexPilot(cars[i], cars) for i in range(1, len(cars))]
             env = BeliefDriveItEnv(cars[0], bots, time_limit=time_limit, noisy=True, random_position=True)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
