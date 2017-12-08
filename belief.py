@@ -8,7 +8,7 @@ from gym import spaces
 from DriveItMultiGym import DriveItEnv
 from car import Car
 from PositionTracking import PositionTracking, TruePosition
-from filter import LowPassFilter
+from filter import LowPassFilter, MovingAverage
 from DriveItCircuit import * #pylint: disable=W0401,W0614
 #pylint: disable=C0301
 
@@ -48,9 +48,11 @@ class BeliefTracking(object):
         high = [  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max,  max_curvature,  max_curvature ]
         low  = [ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max, -max_curvature, -max_curvature ]
         self.sensor_index = len(low)
-        for s in car.dist_sensors:
-            high.append(s.specs[0])
-            low.append(0.0)
+        self.average_index = self.sensor_index + len(car.dist_sensors)
+        for _ in range(2):
+            for s in car.dist_sensors:
+                high.append(s.specs[0])
+                low.append(0.0)
         high, low = np.array(high, dtype=np.float32), np.array(low, dtype=np.float32)
         self._high = high
         if normalize:
@@ -59,12 +61,13 @@ class BeliefTracking(object):
         self.observation_space = spaces.Box(low, high)
         self.belief = np.zeros(low.shape, dtype=low.dtype)
         self.dist = np.zeros(len(car.dist_sensors), dtype=low.dtype)
-        self.df = LowPassFilter(self.filter_gain, self.dist)
+        self._reset_filters(self.dist)
 
     def _read_sensors(self):
         for i in range(len(self.car.dist_sensors)):
             self.dist[i] = self.car.dist_sensors[i].read(self.other_cars)
-        self.belief[self.sensor_index:] = self.df.filter(self.dist)
+        self.belief[self.sensor_index:self.average_index] = self.dlp.filter(self.dist)
+        self.belief[self.average_index:] = self.dma.filter(self.dist)
 
     def _augment_pos(self, pos):
         x_m, y_m, theta_m, v, k = pos
@@ -77,11 +80,15 @@ class BeliefTracking(object):
             return self.belief / self._high
         else:
             return self.belief
-        
+    
+    def _reset_filters(self, values):
+        self.dlp = LowPassFilter(self.filter_gain, values)
+        self.dma = MovingAverage(0.33, 1.0/60.0)
+
     def reset(self, x_m, observation):
         pos = self.tracker.reset(x_m, observation)
         bel = self._augment_pos(pos)
-        self.df = LowPassFilter(self.filter_gain, bel[self.sensor_index:])
+        self._reset_filters(bel[self.sensor_index:])
         return bel
 
     def update(self, action, observation, dt):
