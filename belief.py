@@ -88,7 +88,7 @@ class BeliefTracking(object):
     def reset(self, x_m, observation):
         pos = self.tracker.reset(x_m, observation)
         bel = self._augment_pos(pos)
-        self._reset_filters(bel[self.sensor_index:])
+        self._reset_filters(self.dist)
         return bel
 
     def update(self, action, observation, dt):
