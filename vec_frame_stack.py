@@ -14,8 +14,8 @@ class VecFrameStack(VecEnv):
             self.shift = wos.shape[-1]
         else:
             self.shift = shift
-        low = np.repeat(wos.low, self.nstack, axis=-1)
-        high = np.repeat(wos.high, self.nstack, axis=-1)
+        low = np.tile(wos.low, self.nstack)
+        high = np.tile(wos.high, self.nstack)
         self.stackedobs = np.zeros((venv.num_envs,)+low.shape, low.dtype)
         self._observation_space = spaces.Box(low=low, high=high)
         self._action_space = venv.action_space
