@@ -30,7 +30,7 @@ class DistanceSensor(Part):
         return DistanceSensor(0.2, 0.01, 20 / 360. * pi, 0.001)
 
     def wide():
-        return DistanceSensor(1.0, 0.03, pi / 4, 0.01)
+        return DistanceSensor(0.67, 0.03, pi / 4, 0.01)
 
 
     def set_random(self, np_random):
