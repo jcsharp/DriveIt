@@ -50,7 +50,7 @@ class Car(RectangularPart):
 
     def Simple(color=Color.black, v_max=1.0):
         car = Car(color, CarSpecifications(v_max))
-        car.add_dist_sensor(DistanceSensor(1., 0.03, pi / 4, 0.01), 0.06, 0.0, 0)
+        car.add_dist_sensor(DistanceSensor.wide(), 0.06, 0.0, 0)
         return car
 
 
