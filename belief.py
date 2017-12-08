@@ -61,7 +61,7 @@ class BeliefTracking(object):
         self.observation_space = spaces.Box(low, high)
         self.belief = np.zeros(low.shape, dtype=low.dtype)
         self.dist = np.zeros(len(car.dist_sensors), dtype=low.dtype)
-        self._reset_filters(self.dist)
+        self._reset_filters()
 
     def _read_sensors(self):
         for i in range(len(self.car.dist_sensors)):
@@ -81,14 +81,14 @@ class BeliefTracking(object):
         else:
             return self.belief
     
-    def _reset_filters(self, values):
-        self.dlp = LowPassFilter(self.filter_gain, values)
+    def _reset_filters(self):
+        self.dlp = LowPassFilter(self.filter_gain, self.dist)
         self.dma = MovingAverage(0.33, 1.0/60.0)
 
     def reset(self, x_m, observation):
         pos = self.tracker.reset(x_m, observation)
         bel = self._augment_pos(pos)
-        self._reset_filters(self.dist)
+        self._reset_filters()
         return bel
 
     def update(self, action, observation, dt):
