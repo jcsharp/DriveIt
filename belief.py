@@ -81,7 +81,7 @@ class BeliefTracking(object):
     def reset(self, x_m, observation):
         pos = self.tracker.reset(x_m, observation)
         bel = self._augment_pos(pos)
-        LowPassFilter(self.filter_gain, bel[self.sensor_index:])
+        self.df = LowPassFilter(self.filter_gain, bel[self.sensor_index:])
         return bel
 
     def update(self, action, observation, dt):
