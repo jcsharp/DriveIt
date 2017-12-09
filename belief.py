@@ -14,8 +14,8 @@ from DriveItCircuit import * #pylint: disable=W0401,W0614
 
 
 class BeliefDriveItEnv(DriveItEnv):
-    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True, random_position=True, normalize=True):
-        super().__init__(car, bots, time_limit, noisy, random_position)
+    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True, random_position=True, max_speed_deviation=0.0, normalize=True):
+        super().__init__(car, bots, time_limit, noisy, random_position, max_speed_deviationn)
         other_cars = None if bots is None else [b.car for b in bots]
         if noisy:
             self.tracker = BeliefTracking(car, other_cars, PositionTracking, normalize)

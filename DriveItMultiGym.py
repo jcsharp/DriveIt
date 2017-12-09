@@ -88,7 +88,8 @@ class DriveItEnvMulti(gym.Env):
 
         y_m, theta_m = 0.0, 0.0
         if self.noisy:
-            car.specs.v_max = self.v_max[i] * (1 - self.np_random.uniform(0, self.max_speed_deviation))
+            if i > 0:
+                car.specs.v_max = self.v_max[i] * (1 - self.np_random.uniform(0, self.max_speed_deviation))
             y_m += self.np_random.uniform(-0.01, 0.01)
             theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0)
         
@@ -323,14 +324,14 @@ class DriveItEnvMulti(gym.Env):
 
 class DriveItEnv(DriveItEnvMulti):
 
-    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True, random_position=True):
+    def __init__(self, car=Car(), bots=None, time_limit=10, noisy=True, random_position=True, max_speed_deviation=0.0):
         self.car = car
         self.bots = [] if bots is None else bots
         cars = []
         cars.append(car)
         for bot in self.bots:
             cars.append(bot.car)
-        super().__init__(cars, time_limit, noisy, random_position)
+        super().__init__(cars, time_limit, noisy, random_position, max_speed_deviation)
 
     def _reset(self):
         obs = super()._reset()
