@@ -70,44 +70,21 @@ class PositionTracking(PositionTrackingBase):
 
         x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
-        # def print_adjustment(name, value, new_value, real_value):
-        #     change = new_value - value
-        #     desired = real_value - value
-        #     error = desired - change
-        #     print('%s adjusted by %f (real %f, err %f)' % (name, change, desired, error))
+        # def print_change(x, y, xa, ya):
+        #     def print_adjustment(name, value, new_value, real_value):
+        #         change = new_value - value
+        #         desired = real_value - value
+        #         error = real_value - new_value
+        #         print('%s adjusted by %f (ideal %f, err %f)' % (name, change, desired, error))
+        #     if x != xa:
+        #         print_adjustment('x', x, xa, self.car.get_position()[0])
+        #     if y != ya:
+        #         print_adjustment('y', y, ya, self.car.get_position()[1])        
 
-        pos_adjusted = False
-
-        # checkpoint threshold
-        if checkpoint and not checkpoint_:
-            if x_m > 0.0:
-                #print_adjustment('y>', y, -half_track_width, self.car.get_position()[1])
-                x_m = -checkpoint_median_length
-                y = -half_track_width
-                pos_adjusted = True
-
-        # lap threshold
-        elif checkpoint_ and not checkpoint:
-            if x_m < 0.0:
-                #print_adjustment('x>', x, -half_track_width, self.car.get_position()[0])
-                x_m = 0
-                x = -half_track_width
-                pos_adjusted = True
-        
-        elif checkpoint:
-            if x_m > 0.0:
-                #print_adjustment('x<', x, -half_track_width, self.car.get_position()[0])
-                x_m = 0.0
-                x = -half_track_width
-                pos_adjusted = True
-        
-        elif x_m > 0.0:
-            #print_adjustment('y<', y, -half_track_width, self.car.get_position()[1])
-            x_m = checkpoint_median_length
-            y = -half_track_width
-            pos_adjusted = True
-
+        pos_adjusted, xa, ya = adjust_position(checkpoint != checkpoint_, checkpoint, x_m, x, y)
         if pos_adjusted:
+            # print_change(x, y, xa, ya)
+            x, y = xa, ya
             x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
         self.position = x, y, checkpoint

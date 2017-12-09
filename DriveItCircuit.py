@@ -191,3 +191,42 @@ def median_properties(x_m: float):
         else:
             tangent =  (x_m + threshold_offset) / median_radius
             return tangent, loop_curvature
+
+
+def adjust_position(threshold: bool, checkpoint: bool, x_m: float, x: float, y: float):
+    '''
+    Adjusts the x,y cartesian coordinates based on the relative position to the 
+    lap and checkpoint thresholds.
+
+    :param threshold: The car is on a threshold.
+    :param checkpoint: The car is at or has passed the checkpoint threshold.
+    '''
+    pos_adjusted = False
+
+    if threshold:
+        # checkpoint threshold
+        if checkpoint:
+            if x_m > 0.0:
+                y = -half_track_width
+                pos_adjusted = True #up
+
+        # lap threshold
+        else:
+            if x_m < 0.0:
+                x = -half_track_width
+                pos_adjusted = True #up
+    
+    else:
+        if checkpoint:
+            # passed the lap threshold before we detect it
+            if x_m > 0.0:
+                x = -half_track_width
+                pos_adjusted = True #down
+    
+        else:
+            # passed the checkpoint before we detect it
+            if x_m < 0.0:
+                y = -half_track_width
+                pos_adjusted = True #down
+    
+    return pos_adjusted, x, y
