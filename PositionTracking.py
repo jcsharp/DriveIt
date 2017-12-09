@@ -101,7 +101,7 @@ class PositionTracking(PositionTrackingBase):
                 x = -half_track_width
                 pos_adjusted = True
         
-        elif x_m > checkpoint_median_length:
+        elif x_m > 0.0:
             #print_adjustment('y<', y, -half_track_width, self.car.get_position()[1])
             x_m = checkpoint_median_length
             y = -half_track_width
