@@ -61,7 +61,7 @@ def create_env(time_limit, nbots, seed):
     cars = [Car.HighPerf(Color.green, v_max=2.0)]
     for i in range(nbots):
         cars.append(Car.Simple(bot_colors[i], v_max=1.0))
-    bots = [pilots[i % 2](cars[i], cars) for i in range(1, len(cars))]
+    bots = [pilots[i %  len(pilots)](cars[i], cars) for i in range(1, len(cars))]
     env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.3)
     env.seed(seed)
     # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
