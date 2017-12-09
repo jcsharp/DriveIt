@@ -25,7 +25,7 @@ out_reward = -checkpoint_median_length
 throttle_override_reward = -dt
 
 max_compass_bias = 0.017
-compass_deviation = max_compass_bias / 100.0
+compass_deviation = max_compass_bias / 500.0
 velocity_deviation = 0.001
 
 
@@ -171,7 +171,9 @@ class DriveItEnvMulti(gym.Env):
 
             if self.noisy:
                 # add observation noise
-                compass_bias = clip(self.np_random.normal(compass_bias, compass_deviation), -max_compass_bias, max_compass_bias)
+                compass_bias = clip(
+                    self.np_random.normal(compass_bias, compass_deviation), 
+                    -max_compass_bias, max_compass_bias)
                 theta_hat = theta + compass_bias
                 v_noise = 0.0 if v <= 0 else self.np_random.normal(0, v * velocity_deviation)
                 v_hat = v + v_noise
