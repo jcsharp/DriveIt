@@ -50,7 +50,7 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
     env = VecFrameStack(env, nframes)
 
     return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=4096, nminibatches=32,
-        lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
+        lam=0.99, gamma=0.99, noptepochs=10, log_interval=1,
         ent_coef=0.00,
         lr=1e-4,
         cliprange=0.2,
