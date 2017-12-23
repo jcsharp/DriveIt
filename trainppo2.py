@@ -33,13 +33,13 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
     gym.logger.setLevel(logging.WARN)
     tf.Session(config=config).__enter__()
 
-    pilots = (ReflexPilot, SharpPilot)
+    pilots = (ReflexPilot,) # SharpPilot)
 
     def make_env(rank):
         def env_fn():
             cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
             bots = [pilots[(rank + i) % len(pilots)](cars[i], cars) for i in range(1, len(cars))]
-            env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.3)
+            env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.0)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
