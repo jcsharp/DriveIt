@@ -5,7 +5,7 @@ Position tracking for the DriveIt Gym environment.
 """
 import numpy as np
 from gym import spaces
-from car import Car, steer_actions
+from car import Car
 from DriveItCircuit import * #pylint: disable=W0401,W0614
 #pylint: disable=C0301
 
@@ -16,7 +16,6 @@ class PositionTrackingBase(object):
         self.car = car
         high = np.array([  checkpoint_median_length,  half_track_width,  pi, car.specs.v_max,  car.specs.K_max ], dtype=np.float32)
         low  = np.array([ -checkpoint_median_length, -half_track_width, -pi,             0.0, -car.specs.K_max ], dtype=np.float32)
-        self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
         self.observation = ()
         self.position = ()
