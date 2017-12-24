@@ -12,7 +12,7 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 from gym.envs.classic_control import rendering
-from car import Car, steer_actions
+from car import Car
 from utils import * #pylint: disable=W0401,W0614
 from DriveItCircuit import * #pylint: disable=W0401,W0614
 
@@ -27,6 +27,8 @@ throttle_override_reward = -dt
 max_compass_bias = 0.017
 compass_deviation = max_compass_bias / 500.0
 velocity_deviation = 0.001
+steer_deviation = 0.05
+throttle_deviation = 0.05
 
 
 class DriveItEnvMulti(gym.Env):
@@ -51,8 +53,11 @@ class DriveItEnvMulti(gym.Env):
 
         high = np.array([ 1.0,  0.0 * pi      , cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ], dtype=np.float32)
         low  = np.array([ 0.0, -3.0 * pi / 2.0,                 0.0, -cars[0].specs.K_max, 0.0 ], dtype=np.float32)
-        self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
+
+        high = np.array([  1.0, 1.0 ], dtype=np.float32)
+        low  = np.array([ -1.0, 0.0 ], dtype=np.float32)
+        self.action_space = spaces.Box(low, high)
 
         fname = path.join(path.dirname(__file__), "track.png")
         self._init_track(fname, width=2.0, height=2.0)
@@ -112,13 +117,12 @@ class DriveItEnvMulti(gym.Env):
         throttle = 0.0
         steer = car.specs.curvature_steer(K)
         if self.noisy:
-            steer += clip(self.np_random.choice((-1, 0, 1)) * car.specs.steer_step, -1.0, 1.0)
+            steer += self.np_random.uniform(-steer_deviation, steer_deviation)
 
         if self.random_position:
             throttle = car.safe_throttle(steer)
             if self.noisy:
-                throttle = self.np_random.randint(
-                    0, throttle / car.specs.throttle_step + 1) * car.specs.throttle_step
+                throttle = self.np_random.uniform(0, throttle)
 
         return x_m, car.reset(x, y, theta, steer, throttle)
         

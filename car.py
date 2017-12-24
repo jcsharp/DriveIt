@@ -6,15 +6,13 @@ Car class for the DriveIt Gym environment.
 
 import math
 import numpy as np
-from numpy import cos, sin, pi, sqrt, clip
+from numpy import cos, sin, pi, sqrt, clip, sign
 from utils import *
 from part import *
 from sensors import *
 from gym.envs.classic_control import rendering
 
 
-steer_actions =    [ 0.,  1., -1.,  0.,  1., -1.,  0.,  1., -1.]
-throttle_actions = [ 0.,  0.,  0.,  1.,  1.,  1., -1., -1., -1.]
 max_steer_bias = 0.05
 max_throttle_bias = 0.05
 
@@ -22,13 +20,26 @@ max_throttle_bias = 0.05
 class CarSpecifications():
     car_width = 0.12
     car_length = 0.24
-    steer_step = 0.1
-    throttle_step = 0.1
+    max_steer_speed = 5.0
     K_max = 4.5
     max_accel = 10.0
 
     def __init__(self, v_max=2.5):
         self.v_max = v_max
+
+    def limit_steer_move(self, desired, current, dt):
+        ss = (desired - current) / dt
+        if abs(ss) > self.max_steer_speed:
+            return self.max_steer_speed * dt * sign(ss)
+        else:
+            return desired
+
+    def limit_throttle_move(self, desired, current, dt):
+        a = (desired - current) * self.v_max / dt
+        if abs(a) > self.max_accel:
+            return self.max_accel / self.v_max * dt * sign(desired) + current
+        else:
+            return desired
 
     def safe_turn_speed(self, steer, margin=1.0):
         '''
@@ -42,7 +53,7 @@ class CarSpecifications():
         '''
         Get the steering position for the specified curvature.
         '''
-        return clip(np.round(K / self.K_max / self.steer_step) * self.steer_step, -1.0, 1.0)
+        return clip(K / self.K_max, -1.0, 1.0)
 
         
 
@@ -132,10 +143,10 @@ class Car(RectangularPart):
         steer_, throttle_, v_, K_ = self.state
 
         # action
-        ds = steer_actions[action] * self.specs.steer_step
-        steer = clip(steer_ + ds, -1.0, 1.0)
-        dp = throttle_actions[action] * self.specs.throttle_step
-        throttle, throttle_override = self._safe_throttle_move(steer, throttle_, dp)
+        steer, throttle = action
+        steer = self.specs.limit_steer_move(steer, steer_, dt)
+        throttle = self.specs.limit_throttle_move(throttle, throttle_, dt)
+        throttle, throttle_override = self._safe_throttle_move(steer, throttle)
 
         # desired state
         K_hat = self.specs.K_max * steer
@@ -148,9 +159,9 @@ class Car(RectangularPart):
         # add mechanical noise
         if self.noisy:
             steer_bias, throttle_bias = self.bias
-            if ds != 0.0:
+            if steer != steer_:
                 steer_bias = self.np_random.uniform(-max_steer_bias, max_steer_bias)
-            if dp != 0.0:
+            if throttle != throttle_:
                 throttle_bias = self.np_random.uniform(-max_throttle_bias, max_throttle_bias)
             K = K_hat + self.specs.K_max * steer_bias
             v = v_hat * (1 + throttle_bias)
@@ -185,23 +196,21 @@ class Car(RectangularPart):
         return None
 
 
-    def _safe_throttle_move(self, steer, throttle, desired_change):
+    def _safe_throttle_move(self, steer, throttle):
         '''
-        Moves the throttle by the desired amout or according to the safe speed limit.
+        Moves the throttle to the desired position or according to the safe speed limit.
         '''
-        desired_throttle = throttle + desired_change
         safe = self.safe_throttle(steer)
-        if desired_throttle < safe:
-            safe = clip(desired_throttle, 0.0, 1.0)
-        return safe, desired_throttle - safe
+        if throttle < safe:
+            safe = clip(throttle, 0.0, 1.0)
+        return safe, throttle - safe
 
 
     def safe_throttle(self, steer):
         '''
         Gets the safe throttle value based on the specified steering.
         '''
-        safe = self.specs.safe_turn_speed(steer) / self.specs.v_max
-        return np.round(safe / self.specs.throttle_step) * self.specs.throttle_step
+        return self.specs.safe_turn_speed(steer) / self.specs.v_max
 
 
     def init_rendering(self, viewer):
