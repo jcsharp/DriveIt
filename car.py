@@ -30,14 +30,14 @@ class CarSpecifications():
     def limit_steer_move(self, desired, current, dt):
         ss = (desired - current) / dt
         if abs(ss) > self.max_steer_speed:
-            return self.max_steer_speed * dt * sign(ss)
+            return current + self.max_steer_speed * dt * sign(ss)
         else:
             return desired
 
     def limit_throttle_move(self, desired, current, dt):
         a = (desired - current) * self.v_max / dt
         if abs(a) > self.max_accel:
-            return self.max_accel / self.v_max * dt * sign(desired) + current
+            return current + self.max_accel / self.v_max * dt * sign(a)
         else:
             return desired
 
