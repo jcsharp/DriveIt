@@ -82,7 +82,7 @@ class LookAheadPilot(Autopilot):
         throttle = self.car.specs.safe_turn_speed( \
             max(abs(k), abs(ka)), 0.9) / self.car.specs.v_max
 
-        if (not d or d and not yi and ddd >= 0.0) and v < throttle - epsilon:
+        if (not d or d and not yi and (ddd >= 0.0 or v < 0.05)) and v < throttle - epsilon:
             throttle = min(v + 0.1, 1.0)
         elif dd or (d and ddd < 0.0) or v > throttle + epsilon:
             throttle = max(v - 0.1, 0.0)
