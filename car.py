@@ -82,7 +82,7 @@ class Car(RectangularPart):
         self.noisy = noisy
         self.np_random = np_random
         for s in self.dist_sensors:
-            s.set_random(np_random)
+            s.set_random(noisy, np_random)
 
 
     def add_dist_sensor(self, sensor, x, y, theta):
