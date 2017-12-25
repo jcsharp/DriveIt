@@ -73,14 +73,18 @@ class LookAheadPilot(Autopilot):
         fy = ky * y + kdy * dy
         fth = kth * th + kdth * dth
         fk = kka * (ka - k) + kdka * (dka - k)
-        steer = np.clip(-fy + fth + fk, -1.0, 1.0)
-        
+        f = -fy + fth + fk - k
+        if f > epsilon: steer = min(k + 0.1, 1.0)
+        elif f < -epsilon: steer = max(k - 0.1, -1.0)
+        else: steer = k
+
         d, dd, ddd, yi = self._danger(dist, ddist, x)
         throttle = self.car.specs.safe_turn_speed( \
             max(abs(k), abs(ka)), 0.9) / self.car.specs.v_max
+
         if (not d or d and not yi and ddd >= 0.0) and v < throttle - epsilon:
-            throttle += 0.1
+            throttle = min(v + 0.1, 1.0)
         elif dd or (d and ddd < 0.0) or v > throttle + epsilon:
-            throttle -= 0.1
+            throttle = max(v - 0.1, 0.0)
 
         return steer, throttle
