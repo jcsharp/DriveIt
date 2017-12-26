@@ -8,14 +8,14 @@ from car import Car
 from autopilot import ReflexPilot, SharpPilot
 from PositionTracking import TruePosition
 import tensorflow as tf
-from policy import DriveItPolicy
+from policy import DriveItPolicy, LstmPolicy
 
 sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 
 from baselines import bench, logger
 
 
-def train(timesteps, nenvs, nframes, time_limit, seed):
+def train(timesteps, nenvs, nframes, time_limit, seed, policy_name):
     from baselines.common import set_global_seeds
     from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
     from vec_frame_stack import VecFrameStack
@@ -33,13 +33,13 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
     gym.logger.setLevel(logging.WARN)
     tf.Session(config=config).__enter__()
 
-    pilots = (ReflexPilot,) # SharpPilot)
+    pilots = (ReflexPilot, SharpPilot)
 
     def make_env(rank):
         def env_fn():
             cars = [Car.HighPerf(v_max=2.0), Car.Simple(v_max=1.0)]
             bots = [pilots[(rank + i) % len(pilots)](cars[i], cars) for i in range(1, len(cars))]
-            env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.0)
+            env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.3)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
@@ -47,9 +47,16 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
 
     env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
     set_global_seeds(seed)
-    env = VecFrameStack(env, nframes)
 
-    return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=4096, nminibatches=32,
+    if policy_name == 'lstm':
+        policy = LstmPolicy
+        env = VecFrameStack(env, nframes)
+        nsteps, nminibatches = 120, 4
+    else:
+        policy = DriveItPolicy
+        nsteps, nminibatches = 4096, 32
+
+    return ppo2.learn(policy=policy, env=env, nsteps=nsteps, nminibatches=nminibatches,
         lam=0.95, gamma=1.0, noptepochs=10, log_interval=1,
         ent_coef=0.00,
         lr=1e-4,
@@ -67,6 +74,7 @@ def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser.add_argument('-n', '--num-timesteps', type=int, default=int(3e7))
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
     parser.add_argument('-b', '--batch-name', type=str, default=name)
+    parser.add_argument('-p', '--policy-name', type=str, default='lstm')
     args = parser.parse_args()
     assert(args.envs > 1)
 
@@ -74,7 +82,7 @@ def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     logger.configure(dir=log_dir, format_strs=['tensorboard']) #format_strs=['stdout','tensorboard'])
 
     model = train(timesteps=args.num_timesteps, nenvs=args.envs, nframes=args.frames, \
-        time_limit=args.time_limit, seed=args.seed)
+        time_limit=args.time_limit, seed=args.seed, policy_name=args.policy_name)
     
     return model
 
