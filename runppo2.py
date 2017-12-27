@@ -54,7 +54,7 @@ def render_one(model, time_limit, nbots, nenvs, nframes, seed, record=False):
     print((steps, reward, info))
     input('Done. Press enter to close.')
 
-pilots = (ReflexPilot, SharpPilot)
+pilots = (ReflexPilot,) # SharpPilot)
 bot_colors = [Color.orange, Color.purple, Color.navy]
 
 def create_env(time_limit, nbots, seed):
@@ -62,7 +62,7 @@ def create_env(time_limit, nbots, seed):
     for i in range(nbots):
         cars.append(Car.Simple(bot_colors[i], v_max=1.0))
     bots = [pilots[i %  len(pilots)](cars[i], cars) for i in range(1, len(cars))]
-    env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.3)
+    env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.0)
     env.seed(seed)
     # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
     return env
