@@ -10,20 +10,20 @@ from utils import right_angle, three_quarter_turn
 
 # track metrics
 median_radius = 0.375
-loop_curvature = 1.0 / median_radius
-line_length = 2.0 * median_radius
-loop_median_length = 3.0 / 2.0 * pi * median_radius
-checkpoint_median_length = line_length + loop_median_length
-lap_median_length = 2.0 * checkpoint_median_length
+loop_curvature = 1.0 / median_radius # 2.67
+line_length = 2.0 * median_radius # 0.75
+loop_median_length = 3.0 / 2.0 * pi * median_radius # 1.77
+checkpoint_median_length = line_length + loop_median_length # 2.52
+lap_median_length = 2.0 * checkpoint_median_length # 5.03
 half_track_width = 0.225
-min_radius = median_radius - half_track_width
-max_curvature = 1.0 / min_radius
-threshold_offset = median_radius - half_track_width
-threshold_to_curve = median_radius + half_track_width
-threshold_to_curve_end = checkpoint_median_length - threshold_offset
-checkpoint_to_lap = checkpoint_median_length - half_track_width
-checkpoint_offset = checkpoint_median_length + half_track_width
-loop_to_threshold = loop_median_length + threshold_offset
+min_radius = median_radius - half_track_width # 0.15
+max_curvature = 1.0 / min_radius # 6.67
+threshold_offset = median_radius - half_track_width # 0.15
+threshold_to_curve = median_radius + half_track_width # 0.6
+threshold_to_curve_end = checkpoint_median_length - threshold_offset # 2.37
+checkpoint_to_lap = checkpoint_median_length - half_track_width # 2.29
+checkpoint_offset = checkpoint_median_length + half_track_width # 2.74
+loop_to_threshold = loop_median_length + threshold_offset # 1.92
 blue_width = 0.15
 
 def cartesian_to_median(x: float, y: float, theta: float):
@@ -154,7 +154,7 @@ def track_curvature(x_m: float, y_m: float):
             return 1.0 / (median_radius - y_m)
 
 
-def curve_ahead(x_m: float, y_m: float, distance: float, points = 8):
+def curve_ahead(x_m: float, y_m: float, distance: float, points=8, k_m=0.0):
     '''
     Calculates the average curvature of the track ahead of the specified median position.
     '''
@@ -162,7 +162,7 @@ def curve_ahead(x_m: float, y_m: float, distance: float, points = 8):
     curve, total_weigth = 0.0, 0.0
     for i in range(points):
         weight = points - i
-        curve += track_curvature(x_m + dx * i, y_m) * weight
+        curve += (track_curvature(x_m + dx * i, y_m) - k_m) * weight
         total_weigth += weight
 
     return curve / total_weigth
