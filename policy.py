@@ -3,6 +3,7 @@ import sys
 import os.path as osp
 import numpy as np
 import tensorflow as tf
+from gym import spaces
 
 sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 
@@ -22,8 +23,15 @@ class DriveItPolicy(object):
             h2 = fc(h1, 'vf_fc2', nh=hid_size, init_scale=np.sqrt(2), act=tf.tanh)
             vf = fc(h2, 'vf', 1, act=lambda x:x)[:,0]
 
+            if isinstance(ac_space, spaces.Box):
+                logstd = tf.get_variable(name="logstd", shape=[1, actdim], 
+                    initializer=tf.zeros_initializer())
+                pdparam = tf.concat([pi, pi * 0.0 + logstd], axis=1)
+            else:
+                pdparam = pi
+
         self.pdtype = make_pdtype(ac_space)
-        self.pd = self.pdtype.pdfromflat(pi)
+        self.pd = self.pdtype.pdfromflat(pdparam)
 
         a0 = self.pd.sample()
         neglogp0 = self.pd.neglogp(a0)
