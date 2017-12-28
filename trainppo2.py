@@ -58,6 +58,11 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
         total_timesteps=timesteps,
         save_interval=10)
 
+def set_idle_priority():
+    import psutil, os
+    p = psutil.Process(os.getpid())
+    p.nice(psutil.IDLE_PRIORITY_CLASS)
+
 def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-s', '--seed', help='RNG seed', type=int, default=0)
@@ -73,6 +78,7 @@ def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     log_dir = osp.join(args.log_dir, args.batch_name) 
     logger.configure(dir=log_dir, format_strs=['tensorboard']) #format_strs=['stdout','tensorboard'])
 
+    set_idle_priority()
     model = train(timesteps=args.num_timesteps, nenvs=args.envs, nframes=args.frames, \
         time_limit=args.time_limit, seed=args.seed)
     
