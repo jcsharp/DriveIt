@@ -48,8 +48,9 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
     env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
     set_global_seeds(seed)
     env = VecFrameStack(env, nframes)
+    nsteps = 32768 // nenvs
 
-    return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=4096, nminibatches=32,
+    return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=nsteps, nminibatches=32,
         lam=0.95, gamma=1.0, noptepochs=10, log_interval=1,
         ent_coef=0.00,
         lr=1e-4,
@@ -57,11 +58,10 @@ def train(timesteps, nenvs, nframes, time_limit, seed):
         total_timesteps=timesteps,
         save_interval=10)
 
-
 def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-s', '--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=8)
+    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=32)
     parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
     parser.add_argument('-t', '--time-limit', type=int, default=180)
     parser.add_argument('-n', '--num-timesteps', type=int, default=int(3e7))
