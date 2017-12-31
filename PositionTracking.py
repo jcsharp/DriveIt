@@ -19,28 +19,26 @@ class PositionTrackingBase(object):
         self.observation_space = spaces.Box(low, high)
         self.observation = ()
         self.position = ()
-        self.median_position = ()
 
-    def reset(self, x_m, observation): raise NotImplementedError
+    def reset(self, observation): raise NotImplementedError
 
     def update(self, action, observation, dt): raise NotImplementedError
 
 
 class TruePosition(PositionTrackingBase):
 
-    def _get_state(self, blue):
+    def _get_state(self):
         x, y, theta = self.car.position
         xm, ym, thm = cartesian_to_median(x, y, theta)
         _, _, v, K = self.car.state
         self.position = x, y, xm < 0.0
-        self.median_position = xm, ym, thm
         return xm, ym, thm, v, K
 
-    def reset(self, x_m, observation): #pylint: disable=W0613
-        return self._get_state(observation[-1])
+    def reset(self, observation): #pylint: disable=W0613
+        return self._get_state()
 
     def update(self, action, observation, dt): #pylint: disable=W0613
-        return self._get_state(observation[-1])
+        return self._get_state()
 
 
 class PositionTracking(PositionTrackingBase):
@@ -48,14 +46,13 @@ class PositionTracking(PositionTrackingBase):
     def __init__(self, car):
         super().__init__(car)
 
-    def reset(self, x_m, observation):
+    def reset(self, observation):
+        x, y, _ = self.car.position
         blue, theta, v, K, checkpoint = observation #pylint: disable=W0612
-        x, y, _ = median_to_cartesian(x_m, 0.0, 0.0)
-        theta_m = track_tangent(x_m) - theta
+        xm, ym, thm = cartesian_to_median(x, y, theta)
         self.observation = observation
         self.position = x, y, checkpoint
-        self.median_position = x_m, 0.0, theta_m
-        return x_m, 0.0, theta_m, v, K
+        return xm, ym, thm, v, K
 
     def update(self, action, observation, dt): #pylint: disable=W0613
         x_, y_, checkpoint_ = self.position
@@ -87,6 +84,5 @@ class PositionTracking(PositionTrackingBase):
             x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
         self.position = x, y, checkpoint
-        self.median_position = x_m, y_m, theta_m
 
         return x_m, y_m, theta_m, v, K

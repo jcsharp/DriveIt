@@ -17,8 +17,8 @@ class Autopilot(object):
         self.belief, self.deltas = [], []
         self.action = 0
 
-    def reset(self, x_m, observation):
-        belief = self.tracker.reset(x_m, observation)
+    def reset(self, observation):
+        belief = self.tracker.reset(observation)
         self.deltas = np.zeros(np.shape(belief))
         self.belief = belief
         return belief

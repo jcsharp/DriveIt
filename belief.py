@@ -25,8 +25,7 @@ class BeliefDriveItEnv(DriveItEnv):
 
     def _reset(self):
         obs = super()._reset()
-        x_m = self.state[self.car][0]
-        return self.tracker.reset(x_m, obs)
+        return self.tracker.reset(obs)
 
     def _step(self, action):
         obs, reward, done, info = super()._step(action)
@@ -85,8 +84,8 @@ class BeliefTracking(object):
         self.dlp = LowPassFilter(self.filter_gain, self.dist)
         self.dma = MovingAverage(0.33, 1.0/60.0)
 
-    def reset(self, x_m, observation):
-        pos = self.tracker.reset(x_m, observation)
+    def reset(self, observation):
+        pos = self.tracker.reset(observation)
         bel = self._augment_pos(pos)
         self._reset_filters()
         return bel
