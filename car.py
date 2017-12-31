@@ -59,13 +59,13 @@ class CarSpecifications():
 
 class Car(RectangularPart):
 
-    def Simple(color=Color.black, v_max=1.0):
+    def Simple(color=Color.black, v_max=1.0): #pylint: disable=E0213
         car = Car(color, CarSpecifications(v_max))
         car.add_dist_sensor(DistanceSensor.wide(), 0.06, 0.0, 0)
         return car
 
 
-    def HighPerf(color=Color.black, v_max=2.5):
+    def HighPerf(color=Color.black, v_max=2.5): #pylint: disable=E0213
         car = Car(color, CarSpecifications(v_max))
         car.add_dist_sensor(DistanceSensor.long_range(), 0.115, 0.0, 0.0)
         car.add_dist_sensor(DistanceSensor.mid_range(), 0.115, 0.02, pi / 6.0)
@@ -115,7 +115,7 @@ class Car(RectangularPart):
         return x, y, theta, steer, throttle, v, K
 
 
-    def _dsdt(s, t, a, K_dot):
+    def _dsdt(self, s, t, a, K_dot):
         '''
         Computes derivatives of state parameters.
         '''
@@ -126,9 +126,9 @@ class Car(RectangularPart):
         return x_dot, y_dot, theta_dot, a, K_dot
 
 
-    def _move(x, y, theta, v, K, a, K_dot, dt):
+    def _move(self, x, y, theta, v, K, a, K_dot, dt):
         s = x, y, theta, v, K
-        I = rk4(Car._dsdt, s, [0.0, dt], a, K_dot)
+        I = rk4(self._dsdt, s, [0.0, dt], a, K_dot)
         x, y, theta, v, K = I[1]
         return x, y, theta, v, K
 
@@ -173,7 +173,7 @@ class Car(RectangularPart):
         # get new state
         a = (v - v_) / dt
         K_dot = (K - K_) / dt
-        x, y, theta, _, _ = Car._move(x_, y_, theta_, v_, K_, a, K_dot, dt)
+        x, y, theta, _, _ = self._move(x_, y_, theta_, v_, K_, a, K_dot, dt)
 
         self.set_position(x, y, theta)
         self.state = steer, throttle, v, K
