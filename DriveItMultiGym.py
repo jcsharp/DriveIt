@@ -96,10 +96,11 @@ class DriveItEnvMulti(gym.Env):
             if i > 0:
                 car.specs.v_max = self.v_max[i] * (1 + self.np_random.uniform(-self.bot_speed_deviation, self.bot_speed_deviation))
             y_m += self.np_random.uniform(-0.01, 0.01)
-            theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0)
+            theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0) # 5° deviation
         
         if self.random_position:
             k = 0
+            y_m += self.np_random.uniform(-0.15, .15)
             while True:
                 # random position along the track median
                 x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
