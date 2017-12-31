@@ -87,7 +87,7 @@ class Car(RectangularPart):
         self.noisy = False
         self.np_random = None
         self.reset(*args, **kwargs)
-
+        self.position = 0.0, 0.0, 0.0
 
     def set_noise(self, noisy, np_random):
         self.noisy = noisy
@@ -106,6 +106,7 @@ class Car(RectangularPart):
             v = self.specs.v_max * throttle
         K = self.specs.K_max * steer
 
+        self.position = x, y, theta
         self.set_position(x, y, theta)
         self.state = steer, throttle, v, K
         self.bias = 0.0, 0.0
@@ -139,7 +140,7 @@ class Car(RectangularPart):
         '''
 
         # initial state
-        x_, y_, theta_ = self.get_position()
+        x_, y_, theta_ = self.position
         steer_, throttle_, v_, K_ = self.state
 
         # action
@@ -175,6 +176,7 @@ class Car(RectangularPart):
         K_dot = (K - K_) / dt
         x, y, theta, _, _ = self._move(x_, y_, theta_, v_, K_, a, K_dot, dt)
 
+        self.position = x, y, theta
         self.set_position(x, y, theta)
         self.state = steer, throttle, v, K
 
@@ -242,7 +244,7 @@ class Car(RectangularPart):
     def render(self, viewer):
         
         self.steering_wheel.set_rotation(self.state[0] * right_angle)
-        x, y, theta = self.get_position()
+        x, y, theta = self.position
         self.breadcrumb.v.append((x, y))
         if len(self.breadcrumb.v) > self.trail_length:
             self.breadcrumb.v.pop(0)

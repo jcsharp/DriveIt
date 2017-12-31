@@ -29,7 +29,7 @@ class PositionTrackingBase(object):
 class TruePosition(PositionTrackingBase):
 
     def _get_state(self, blue):
-        x, y, theta = self.car.get_position()
+        x, y, theta = self.car.position
         xm, ym, thm = cartesian_to_median(x, y, theta)
         _, _, v, K = self.car.state
         self.position = x, y, xm < 0.0
@@ -65,7 +65,7 @@ class PositionTracking(PositionTrackingBase):
 
         a = (v - v_) / dt
         K_dot = (K - K_) / dt
-        x, y, _, _, _ = Car._move(x_, y_, theta_, v_, K_, a, K_dot, dt)
+        x, y, _, _, _ = self.car._move(x_, y_, theta_, v_, K_, a, K_dot, dt)
 
         x_m, y_m, theta_m = cartesian_to_median(x, y, theta)
 
@@ -76,9 +76,9 @@ class PositionTracking(PositionTrackingBase):
         #         error = real_value - new_value
         #         print('%s adjusted by %f (ideal %f, err %f)' % (name, change, desired, error))
         #     if x != xa:
-        #         print_adjustment('x', x, xa, self.car.get_position()[0])
+        #         print_adjustment('x', x, xa, self.car.position[0])
         #     if y != ya:
-        #         print_adjustment('y', y, ya, self.car.get_position()[1])        
+        #         print_adjustment('y', y, ya, self.car.position[1])        
 
         pos_adjusted, xa, ya = adjust_position(checkpoint != checkpoint_, checkpoint, x_m, x, y)
         if pos_adjusted:
