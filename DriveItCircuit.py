@@ -154,6 +154,14 @@ def track_curvature(x_m: float, y_m: float):
             return 1.0 / (median_radius - y_m)
 
 
+def median_offset(x_m: float, offset: float):
+    x = x_m + offset
+    if x > checkpoint_median_length:
+        return x - lap_median_length
+    else:
+        return x
+
+
 def curve_ahead(x_m: float, y_m: float, distance: float, points=8):
     '''
     Calculates the average curvature of the track ahead of the specified median position.
@@ -162,7 +170,7 @@ def curve_ahead(x_m: float, y_m: float, distance: float, points=8):
     curve, total_weigth = 0.0, 0.0
     for i in range(points):
         weight = points - i
-        curve += track_curvature(x_m + dx * i, y_m) * weight
+        curve += track_curvature(median_offset(x_m, dx * i), y_m) * weight
         total_weigth += weight
 
     return curve / total_weigth
