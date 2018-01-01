@@ -23,6 +23,7 @@ class CarSpecifications():
     max_steer_speed = 5.0
     K_max = 4.5
     max_accel = 10.0
+    lateral_offset = 0.0
 
     def __init__(self, v_max=2.5):
         self.v_max = v_max

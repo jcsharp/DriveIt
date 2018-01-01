@@ -52,19 +52,27 @@ def _danger(dist, ddist, x):
     return d, dd, ddd, yi
 
 
+def LeftLaneFollowingPilot(car, other_cars):
+    return LaneFollowingPilot(car, other_cars, TruePosition, 0.5)
+
+def RightLaneFollowingPilot(car, other_cars):
+    return LaneFollowingPilot(car, other_cars, TruePosition, -0.5)
+
 class LaneFollowingPilot(Autopilot):
     def __init__(self, car, other_cars=None, tracker_type=PositionTracking,
                  offset=0.0, ky=10, kdy=100, kka=6):
         super().__init__(car, other_cars, tracker_type)
-        self.params = [offset, ky, kdy, kka]
+        self.car.specs.lateral_offset = offset
+        self.params = ky, kdy, kka
 
     def set_offset(self, value):
-        self.params[0] = value
+        self.car.specs.lateral_offset = value
     
     def _act(self):
         x, y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
         dx, dy, dth, dv, dk, dkt, dka, *ddist = self.deltas #pylint: disable=W0612
-        offset, ky, kdy, kka = self.params
+        ky, kdy, kka = self.params
+        offset = self.car.specs.lateral_offset
 
         f = ky * (offset - y) - kdy * dy + kka * (ka - k)
         steer = np.clip(f, -1.0, 1.0)

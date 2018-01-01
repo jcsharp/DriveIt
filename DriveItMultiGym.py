@@ -45,7 +45,7 @@ class DriveItEnvMulti(gym.Env):
         self.noisy = noisy
         self.random_position = random_position
         self.bot_speed_deviation = bot_speed_deviation
-        self.v_max = [car.specs.v_max for car in cars]
+        self.specs = [car.specs for car in cars]
         self.car_num = len(cars)
         self.dt = dt
         
@@ -91,17 +91,16 @@ class DriveItEnvMulti(gym.Env):
     def _reset_car(self, i):
         car = self.cars[i]
 
-        y_m, theta_m = 0.0, 0.0
+        y_m, theta_m = self.specs[i].lateral_offset * half_track_width, 0.0
         if self.noisy:
             if i > 0:
-                car.specs.v_max = self.v_max[i] * (1 + self.np_random.uniform(
+                car.specs.v_max = self.specs[i].v_max * (1 + self.np_random.uniform(
                     -self.bot_speed_deviation, self.bot_speed_deviation))
             y_m += self.np_random.uniform(-0.01, 0.01)
             theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0) # 5° deviation
         
         if self.random_position:
             k = 0
-            y_m += self.np_random.uniform(-0.15, .15)
             while True:
                 # random position along the track median
                 x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
