@@ -36,6 +36,54 @@ class Autopilot(object):
     def _act(self): raise NotImplementedError
 
 
+def _danger(dist, ddist, x):
+    d, dd, ddd, yi = False, False, 1.0, False
+    if x < 0.0 and x > -0.2:
+        yi = True
+        if dist[0] < 0.6:
+            d, dd = True, True
+    for i in range(0, 3 if len(dist) > 2 else 1):
+        ddd = min(ddd, ddist[i])
+        if dist[i] < (0.5 if i == 0 else 0.95):
+            d = True
+            if yi or dist[i] < (0.35 if i == 0 else 0.7):
+                dd = True
+            
+    return d, dd, ddd, yi
+
+
+class LaneFollowingPilot(Autopilot):
+    def __init__(self, car, other_cars=None, tracker_type=PositionTracking,
+                 offset=0.0, ky=10, kdy=100, kka=6):
+        super().__init__(car, other_cars, tracker_type)
+        self.params = [offset, ky, kdy, kka]
+
+    def set_offset(self, value):
+        self.params[0] = value
+    
+    def _act(self):
+        x, y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
+        dx, dy, dth, dv, dk, dkt, dka, *ddist = self.deltas #pylint: disable=W0612
+        offset, ky, kdy, kka = self.params
+
+        f = ky * (offset - y) - kdy * dy + kka * (ka - k)
+        steer = np.clip(f, -1.0, 1.0)
+        #if -f > 0.0: steer = min(k + 0.1, 1.0)
+        #elif -f < -0.0: steer = max(k - 0.1, -1.0)
+        #else: steer = k
+
+        d, dd, ddd, yi = _danger(dist, ddist, x)
+        throttle = self.car.specs.safe_turn_speed( \
+            max(abs(k), abs(ka)), 0.9) / self.car.specs.v_max
+
+        if (not d or d and not yi and (ddd >= 0.0 or v < 0.05)) and v < throttle - epsilon:
+            throttle = min(v + 0.1, 1.0)
+        elif dd or (d and ddd < 0.0) or v > throttle + epsilon:
+            throttle = max(v - 0.1, 0.0)
+
+        return steer, throttle
+
+
 def ReflexPilot(car, other_cars):
     return LookAheadPilot(car, other_cars, TruePosition, kka=1.0, kdka=1.0)
 
@@ -50,21 +98,6 @@ class LookAheadPilot(Autopilot):
         super().__init__(car, other_cars, tracker_type)
         self.params = ky, kdy, kth, kdth, kka, kdka
 
-    def _danger(self, dist, ddist, x):
-        d, dd, ddd, yi = False, False, 1.0, False
-        if x < 0.0 and x > -0.2:
-            yi = True
-            if dist[0] < 0.6:
-                d, dd = True, True
-        for i in range(0, 3 if len(dist) > 2 else 1):
-            ddd = min(ddd, ddist[i])
-            if dist[i] < (0.5 if i == 0 else 0.95):
-                d = True
-                if yi or dist[i] < (0.35 if i == 0 else 0.7):
-                    dd = True
-                
-        return d, dd, ddd, yi
-
     def _act(self):
         x, y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
         dx, dy, dth, dv, dk, dkt, dka, *ddist = self.deltas #pylint: disable=W0612
@@ -78,7 +111,7 @@ class LookAheadPilot(Autopilot):
         elif f < -epsilon: steer = max(k - 0.1, -1.0)
         else: steer = k
 
-        d, dd, ddd, yi = self._danger(dist, ddist, x)
+        d, dd, ddd, yi = _danger(dist, ddist, x)
         throttle = self.car.specs.safe_turn_speed( \
             max(abs(k), abs(ka)), 0.9) / self.car.specs.v_max
 
