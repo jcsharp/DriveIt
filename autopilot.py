@@ -62,12 +62,9 @@ class LaneFollowingPilot(Autopilot):
     def __init__(self, car, other_cars=None, tracker_type=PositionTracking,
                  offset=0.0, ky=10, kdy=100, kka=6):
         super().__init__(car, other_cars, tracker_type)
-        self.car.specs.lateral_offset = offset
+        self.car.specs.set_lateral_offset(offset)
         self.params = ky, kdy, kka
 
-    def set_offset(self, value):
-        self.car.specs.lateral_offset = value
-    
     def _act(self):
         x, y, th, v, k, kt, ka, *dist = self.belief #pylint: disable=W0612
         dx, dy, dth, dv, dk, dkt, dka, *ddist = self.deltas #pylint: disable=W0612

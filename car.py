@@ -6,7 +6,7 @@ Car class for the DriveIt Gym environment.
 
 import math
 import numpy as np
-from numpy import cos, sin, pi, sqrt, clip, sign
+from numpy import cos, sin, pi, sqrt, clip, sign #pylint: disable=E0611
 from utils import *
 from part import *
 from sensors import *
@@ -23,10 +23,13 @@ class CarSpecifications():
     max_steer_speed = 5.0
     K_max = 4.5
     max_accel = 10.0
-    lateral_offset = 0.0
+    lateral_offset = lateral_offset_default = 0.0
 
     def __init__(self, v_max=2.5):
-        self.v_max = v_max
+        self.v_max = self.v_max_default = v_max
+
+    def set_lateral_offset(self, value):
+        self.lateral_offset = self.lateral_offset_default = value
 
     def limit_steer_move(self, desired, current, dt):
         ss = (desired - current) / dt

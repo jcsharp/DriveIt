@@ -7,7 +7,7 @@ Drive-It competition simulation environment
 from os import path
 import math
 import numpy as np
-from numpy import cos, sin, pi, clip #pylint: disable=W0611
+from numpy import cos, sin, pi, clip, sign #pylint: disable=W0611,E0611
 import gym
 from gym import spaces
 from gym.utils import seeding
@@ -45,7 +45,6 @@ class DriveItEnvMulti(gym.Env):
         self.noisy = noisy
         self.random_position = random_position
         self.bot_speed_deviation = bot_speed_deviation
-        self.specs = [car.specs for car in cars]
         self.car_num = len(cars)
         self.dt = dt
         
@@ -91,12 +90,17 @@ class DriveItEnvMulti(gym.Env):
     def _reset_car(self, i):
         car = self.cars[i]
 
-        y_m, theta_m = self.specs[i].lateral_offset * half_track_width, 0.0
+        y_m = car.specs.lateral_offset_default * half_track_width
+        theta_m = 0.0
         if self.noisy:
             if i > 0:
-                car.specs.v_max = self.specs[i].v_max * (1 + self.np_random.uniform(
+                car.specs.v_max = car.specs.v_max_default * (1 + self.np_random.uniform(
                     -self.bot_speed_deviation, self.bot_speed_deviation))
-            y_m += self.np_random.uniform(-0.01, 0.01)
+            if y_m == 0.0:
+                y_m += self.np_random.uniform(-0.01, 0.01)
+            else:
+                y_m += self.np_random.uniform(-abs(y_m) + 0.02, 0.00) * sign(y_m)
+                car.specs.lateral_offset = y_m / half_track_width
             theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0) # 5° deviation
         
         if self.random_position:
