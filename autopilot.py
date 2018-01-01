@@ -73,9 +73,6 @@ class LaneFollowingPilot(Autopilot):
 
         f = ky * (offset - y) - kdy * dy + kka * (ka - k)
         steer = np.clip(f, -1.0, 1.0)
-        #if -f > 0.0: steer = min(k + 0.1, 1.0)
-        #elif -f < -0.0: steer = max(k - 0.1, -1.0)
-        #else: steer = k
 
         d, dd, ddd, yi = _danger(dist, ddist, x)
         throttle = self.car.specs.safe_turn_speed( \
