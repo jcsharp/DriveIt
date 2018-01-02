@@ -30,6 +30,7 @@ velocity_deviation = 0.001
 steer_deviation = 0.01
 throttle_deviation = 0.05
 
+bot_min_distance = -0.1
 bot_max_distance = 1.0
 bot_distance_growth = 0.01
 
@@ -140,13 +141,16 @@ class DriveItEnvMulti(gym.Env):
 
         bot = self.cars[1]
         x0_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
-        dist = self.np_random.uniform(-0.1, self.bot_distance)
+        dist = self.np_random.uniform(bot_min_distance, self.bot_distance)
         x1_m = median_offset(x0_m, dist)
         y1_m = bot.specs.lateral_offset_default * half_track_width
         ldev = self.np_random.uniform(0.04 - abs(y1_m), 0.00)
         y1_m += ldev * sign(y1_m)
         bot.specs.lateral_offset = y1_m / half_track_width
-        y0_m = 0.5 * (half_track_width - ldev) * sign(-y1_m)
+        y0_m1 = 0.5 * (half_track_width - ldev) * sign(-y1_m)
+        y0_m2 = 0.5 * self.np_random.uniform(-half_track_width, half_track_width)
+        k12 = max(0.0, dist - bot.specs.car_length) / (bot_max_distance - bot.specs.car_length)
+        y0_m = (1 - k12) * y0_m1 + k12 * y0_m2
 
         self._reset_car(0, x0_m, y0_m)
         self._reset_car(1, x1_m, y1_m)
