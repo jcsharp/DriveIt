@@ -30,9 +30,8 @@ velocity_deviation = 0.001
 steer_deviation = 0.01
 throttle_deviation = 0.05
 
-bot_min_distance = -0.1
+bot_min_distance = 0.0
 bot_max_distance = 1.0
-bot_distance_growth = 0.01
 
 
 class DriveItEnvMulti(gym.Env):
@@ -69,8 +68,14 @@ class DriveItEnvMulti(gym.Env):
         self.time = -1.0
         self.observations = {}
         self.state = {}
-        self.bot_distance = 0.0
 
+        self.bot_distance_growth = 0.0
+        self.bot_distance = bot_max_distance
+            
+
+    def set_training_mode(self, bot_distance_growth):
+        self.bot_distance_growth = bot_distance_growth
+        self.bot_distance = bot_min_distance
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -113,7 +118,7 @@ class DriveItEnvMulti(gym.Env):
         if self.random_position:
             throttle = car.safe_throttle(steer)
             if self.noisy:
-                throttle = self.np_random.uniform(0, throttle)
+                throttle = self.np_random.uniform(throttle * 0.7, throttle)
 
         if self.noisy:
             compass_bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
@@ -149,14 +154,14 @@ class DriveItEnvMulti(gym.Env):
         bot.specs.lateral_offset = y1_m / half_track_width
         y0_m1 = 0.5 * (half_track_width - ldev) * sign(-y1_m)
         y0_m2 = 0.5 * self.np_random.uniform(-half_track_width, half_track_width)
-        k12 = max(0.0, dist - bot.specs.car_length) / (bot_max_distance - bot.specs.car_length)
+        k12 = max(0.0, abs(dist) - bot.specs.car_length) / (bot_max_distance - bot.specs.car_length)
         y0_m = (1 - k12) * y0_m1 + k12 * y0_m2
 
         self._reset_car(0, x0_m, y0_m)
         self._reset_car(1, x1_m, y1_m)
 
         if self.bot_distance < bot_max_distance:
-            self.bot_distance += bot_distance_growth
+            self.bot_distance += self.bot_distance_growth
 
         return self.observations
 

@@ -33,6 +33,11 @@ def train(timesteps, nenvs, nframes, num_cars, time_limit, seed):
     gym.logger.setLevel(logging.WARN)
     tf.Session(config=config).__enter__()
 
+    steps_per_batch = 30000
+    batch_learn_goal = 200
+    max_ep_per_batch = steps_per_batch / time_limit / 60.0
+    distance_growth = nenvs / max_ep_per_batch / batch_learn_goal
+
     pilots = (LeftLaneFollowingPilot, RightLaneFollowingPilot)
 
     def make_env(rank):
@@ -42,6 +47,7 @@ def train(timesteps, nenvs, nframes, num_cars, time_limit, seed):
                 cars.append(Car.Simple(v_max=1.2))
             bots = [pilots[(rank + i) % len(pilots)](cars[i], cars) for i in range(1, len(cars))]
             env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.15)
+            env.set_training_mode(distance_growth)
             env.seed(seed + rank)
             env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
             return env
@@ -50,9 +56,9 @@ def train(timesteps, nenvs, nframes, num_cars, time_limit, seed):
     env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
     set_global_seeds(seed)
     env = VecFrameStack(env, nframes)
-    nsteps = 32768 // nenvs
+    nsteps = steps_per_batch // nenvs
 
-    return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=nsteps, nminibatches=32,
+    return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=nsteps, nminibatches=30,
         lam=0.95, gamma=0.995, noptepochs=10, log_interval=1,
         vf_coef=0.5, ent_coef=0.00,
         lr=1e-4, cliprange=0.2,
@@ -67,9 +73,9 @@ def set_idle_priority():
 def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-s', '--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=32)
+    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=30)
     parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
-    parser.add_argument('-t', '--time-limit', type=int, default=60)
+    parser.add_argument('-t', '--time-limit', type=float, default=4)
     parser.add_argument('-n', '--num-timesteps', type=int, default=int(1e7))
     parser.add_argument('-c', '--num-cars', type=int, default=2)
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
