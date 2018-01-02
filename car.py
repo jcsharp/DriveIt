@@ -117,8 +117,6 @@ class Car(RectangularPart):
         if self.breadcrumb != None:
             self.breadcrumb.v.clear()
 
-        return x, y, theta, steer, throttle, v, K
-
 
     def _dsdt(self, s, t, a, K_dot):
         '''
