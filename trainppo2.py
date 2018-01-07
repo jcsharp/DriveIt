@@ -5,8 +5,8 @@ import argparse
 from datetime import datetime
 from belief import BeliefDriveItEnv
 from car import Car
-from autopilot import LeftLaneFollowingPilot, RightLaneFollowingPilot
-from PositionTracking import TruePosition
+from autopilot import LeftLaneFollowingPilot, RightLaneFollowingPilot #, ReflexPilot, SharpPilot
+# from PositionTracking import TruePosition
 import tensorflow as tf
 from policy import DriveItPolicy
 
@@ -14,8 +14,15 @@ sys.path.append(osp.join(osp.dirname(osp.abspath(__file__)), "openai"))
 
 from baselines import bench, logger
 
+def load_model(model_file, checkpoint_path):
+    import cloudpickle
+    with open(model_file, 'rb') as f:
+        make_model = cloudpickle.load(f)
+    model = make_model()
+    model.load(checkpoint_path)
+    return model
 
-def train(timesteps, nenvs, nframes, num_cars, time_limit, seed):
+def train(timesteps, nenvs, nframes, num_cars, time_limit, seed, model_file=None, checkpoint_path=None):
     from baselines.common import set_global_seeds
     from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
     from vec_frame_stack import VecFrameStack
@@ -33,12 +40,17 @@ def train(timesteps, nenvs, nframes, num_cars, time_limit, seed):
     gym.logger.setLevel(logging.WARN)
     tf.Session(config=config).__enter__()
 
+    if model_file is None:
+        model = None
+    else:
+        model = load_model(model_file, checkpoint_path)
+
     steps_per_batch = 30000
-    batch_learn_goal = 200
+    batch_learn_goal = 100
     max_ep_per_batch = steps_per_batch / time_limit / 60.0
     distance_growth = nenvs / max_ep_per_batch / batch_learn_goal
 
-    pilots = (LeftLaneFollowingPilot, RightLaneFollowingPilot)
+    pilots = (LeftLaneFollowingPilot, RightLaneFollowingPilot) #, ReflexPilot, SharpPilot)
 
     def make_env(rank):
         def env_fn():
@@ -58,7 +70,7 @@ def train(timesteps, nenvs, nframes, num_cars, time_limit, seed):
     env = VecFrameStack(env, nframes)
     nsteps = steps_per_batch // nenvs
 
-    return ppo2.learn(policy=DriveItPolicy, env=env, nsteps=nsteps, nminibatches=30,
+    return ppo2.learn(policy=DriveItPolicy, model=model, env=env, nsteps=nsteps, nminibatches=30,
         lam=0.95, gamma=0.995, noptepochs=10, log_interval=1,
         vf_coef=0.5, ent_coef=0.00,
         lr=1e-4, cliprange=0.2,
@@ -76,19 +88,32 @@ def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser.add_argument('-e', '--envs', help='number of environments', type=int, default=30)
     parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
     parser.add_argument('-t', '--time-limit', type=float, default=4)
-    parser.add_argument('-n', '--num-timesteps', type=int, default=int(1e7))
+    parser.add_argument('-n', '--num-timesteps', type=int, default=int(5e6))
     parser.add_argument('-c', '--num-cars', type=int, default=2)
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
     parser.add_argument('-b', '--batch-name', type=str, default=name)
+    parser.add_argument('-ib', '--initial-batch', type=str, default='nobot')
+    parser.add_argument('-ic', '--initial-checkpoint', type=str, default='00100')
     args = parser.parse_args()
     assert(args.envs > 1)
+
+    set_idle_priority()
 
     log_dir = osp.join(args.log_dir, args.batch_name) 
     logger.configure(dir=log_dir, format_strs=['tensorboard']) #format_strs=['stdout','tensorboard'])
 
-    set_idle_priority()
-    model = train(timesteps=args.num_timesteps, nenvs=args.envs, nframes=args.frames, \
-        num_cars=args.num_cars, time_limit=args.time_limit, seed=args.seed)
+    if args.initial_checkpoint is not None:
+        if args.initial_batch is None:
+            args.initial_batch = args.batch_name
+        model_dir = osp.join(args.log_dir, args.initial_batch)
+        model_file = osp.join(model_dir, 'make_model.pkl')
+        checkpoint_path = osp.join(model_dir, 'checkpoints', args.initial_checkpoint)
+        model = train(timesteps=args.num_timesteps, nenvs=args.envs, nframes=args.frames, \
+            num_cars=args.num_cars, time_limit=args.time_limit, seed=args.seed, \
+            model_file=model_file, checkpoint_path=checkpoint_path)
+    else:
+        model = train(timesteps=args.num_timesteps, nenvs=args.envs, nframes=args.frames, \
+            num_cars=args.num_cars, time_limit=args.time_limit, seed=args.seed)
     
     return model
 
