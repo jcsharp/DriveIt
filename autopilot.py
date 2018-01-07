@@ -59,7 +59,7 @@ def RightLaneFollowingPilot(car, other_cars):
     return LaneFollowingPilot(car, other_cars, TruePosition, -0.5)
 
 class LaneFollowingPilot(Autopilot):
-    def __init__(self, car, other_cars=None, tracker_type=PositionTracking,
+    def __init__(self, car, other_cars=None, tracker_type=TruePosition,
                  offset=0.0, ky=10, kdy=100, kka=6):
         super().__init__(car, other_cars, tracker_type)
         self.car.specs.set_lateral_offset(offset)

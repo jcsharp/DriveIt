@@ -7,7 +7,7 @@ import tensorflow as tf
 from belief import BeliefDriveItEnv
 from policy import DriveItPolicy
 from car import Car
-from autopilot import ReflexPilot, SharpPilot
+from autopilot import LaneFollowingPilot, ReflexPilot, SharpPilot
 from PositionTracking import TruePosition
 from utils import Color
 
@@ -54,15 +54,16 @@ def render_one(model, time_limit, nbots, nenvs, nframes, seed, record=False):
     print((steps, reward, info))
     input('Done. Press enter to close.')
 
-pilots = (ReflexPilot, SharpPilot)
+pilots = (LaneFollowingPilot, ReflexPilot, SharpPilot)
+rank = np.random.randint(0, len(pilots))
 bot_colors = [Color.orange, Color.purple, Color.navy]
 
 def create_env(time_limit, nbots, seed):
     cars = [Car.HighPerf(Color.green, v_max=2.0)]
     for i in range(nbots):
         cars.append(Car.Simple(bot_colors[i], v_max=1.2))
-    bots = [pilots[i %  len(pilots)](cars[i], cars) for i in range(1, len(cars))]
-    env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.3)
+    bots = [pilots[(i + rank) % len(pilots)](cars[i], cars) for i in range(1, len(cars))]
+    env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.15)
     env.seed(seed)
     # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
     return env
@@ -102,10 +103,10 @@ def main():
     parser.add_argument('-b', '--batch-name', type=str, default=None)
     parser.add_argument('-m', '--model', type=str, default='make_model.pkl')
     parser.add_argument('-c', '--checkpoint', type=str)
-    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=32)
+    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=30)
     parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
-    parser.add_argument('-t', '--time-limit', type=int, default=180)
-    parser.add_argument('-n', '--number-bots', type=int, default=2)
+    parser.add_argument('-t', '--time-limit', type=int, default=4)
+    parser.add_argument('-n', '--number-bots', type=int, default=1)
     parser.add_argument('-r', '--render', action='store_true', default=False)
     parser.add_argument('-v', '--video-record', action='store_true', default=False)
     args = parser.parse_args()

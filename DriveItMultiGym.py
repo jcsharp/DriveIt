@@ -150,11 +150,10 @@ class DriveItEnvMulti(gym.Env):
             dist = self.np_random.uniform(bot_min_distance, self.bot_distance)
             bot = self.cars[1]
             x1_m = median_offset(x0_m, dist)
-            y1_m = bot.specs.lateral_offset_default * half_track_width
-            ldev = self.np_random.uniform(0.04 - abs(y1_m), 0.00)
-            y1_m += ldev * sign(y1_m)
+            ay1_m = self.np_random.uniform(0.01, 0.5 * half_track_width)
+            y1_m = ay1_m * self.np_random.choice([-1.0, 1.0])
             bot.specs.lateral_offset = y1_m / half_track_width
-            y01_m = 0.5 * (half_track_width - ldev) * sign(-y1_m)
+            y01_m = (0.5 * half_track_width - ay1_m + 0.5 * bot.specs.car_width) * sign(-y1_m) 
             kdist = max(0.0, abs(dist) - bot.specs.car_length) / (bot_max_distance - bot.specs.car_length)
             y0_m = kdist * y0_m + (1 - kdist) * y01_m
             self._reset_car(1, x1_m, y1_m)

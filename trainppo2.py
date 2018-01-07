@@ -5,7 +5,7 @@ import argparse
 from datetime import datetime
 from belief import BeliefDriveItEnv
 from car import Car
-from autopilot import LeftLaneFollowingPilot, RightLaneFollowingPilot #, ReflexPilot, SharpPilot
+from autopilot import LaneFollowingPilot #, ReflexPilot, SharpPilot
 # from PositionTracking import TruePosition
 import tensorflow as tf
 from policy import DriveItPolicy
@@ -50,12 +50,12 @@ def train(timesteps, nenvs, nframes, num_cars, time_limit, seed, model_file=None
     max_ep_per_batch = steps_per_batch / time_limit / 60.0
     distance_growth = nenvs / max_ep_per_batch / batch_learn_goal
 
-    pilots = (LeftLaneFollowingPilot, RightLaneFollowingPilot) #, ReflexPilot, SharpPilot)
+    pilots = (LaneFollowingPilot,) # ReflexPilot, SharpPilot)
 
     def make_env(rank):
         def env_fn():
             cars = [Car.HighPerf(v_max=2.0)]
-            for i in range(1, num_cars):
+            for _ in range(1, num_cars):
                 cars.append(Car.Simple(v_max=1.2))
             bots = [pilots[(rank + i) % len(pilots)](cars[i], cars) for i in range(1, len(cars))]
             env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.15)
