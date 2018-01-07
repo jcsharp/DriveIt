@@ -93,7 +93,7 @@ def main(name=datetime.now().strftime('%Y%m%d%H%M%S')):
     parser.add_argument('-l', '--log-dir', type=str, default='metrics')
     parser.add_argument('-b', '--batch-name', type=str, default=name)
     parser.add_argument('-ib', '--initial-batch', type=str, default='nobot')
-    parser.add_argument('-ic', '--initial-checkpoint', type=str, default='00100')
+    parser.add_argument('-ic', '--initial-checkpoint', type=str, default='00140')
     args = parser.parse_args()
     assert(args.envs > 1)
 
