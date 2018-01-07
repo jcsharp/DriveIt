@@ -118,14 +118,25 @@ def main():
 
     assert(args.number_bots <= len(bot_colors))
 
-    with tf.Session() as sess:
-        model = load_model(model_file, checkpoint_path)
-        if args.render:
-            render_one(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed, args.video_record)
-        else:
-            run_many(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed)
+    import gym
+    import logging
+    import multiprocessing
 
-        sess.close()
+    ncpu = multiprocessing.cpu_count()
+    if sys.platform == 'darwin': ncpu //= 2
+    config = tf.ConfigProto(allow_soft_placement=True,
+                            intra_op_parallelism_threads=ncpu,
+                            inter_op_parallelism_threads=ncpu)
+    config.gpu_options.allow_growth = True #pylint: disable=E1101
+    gym.logger.setLevel(logging.WARN)
+    tf.Session(config=config).__enter__()
+
+    model = load_model(model_file, checkpoint_path)
+    if args.render:
+        render_one(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed, args.video_record)
+    else:
+        run_many(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed)
+
 
 if __name__ == '__main__':
     main()
