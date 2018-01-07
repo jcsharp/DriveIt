@@ -73,7 +73,7 @@ def train(timesteps, nenvs, nframes, num_cars, time_limit, seed, model_file=None
     return ppo2.learn(policy=DriveItPolicy, model=model, env=env, nsteps=nsteps, nminibatches=30,
         lam=0.95, gamma=0.995, noptepochs=10, log_interval=1,
         vf_coef=0.5, ent_coef=0.00,
-        lr=1e-4, cliprange=0.2,
+        lr=2e-4, cliprange=0.2,
         total_timesteps=timesteps,
         save_interval=10)
 
