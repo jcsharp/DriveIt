@@ -93,6 +93,7 @@ def run_many(model, time_limit, nbots, nenvs, nframes, seed):
         reward += r
     
     print((steps, reward, info))
+    print(np.mean(reward))
     env.close()
 
 
