@@ -7,7 +7,7 @@ import tensorflow as tf
 from belief import BeliefDriveItEnv
 from policy import DriveItPolicy
 from car import Car
-from autopilot import ReflexPilot, SharpPilot
+from autopilot import LaneFollowingPilot, ReflexPilot, SharpPilot
 from PositionTracking import TruePosition
 from utils import Color
 
@@ -54,15 +54,16 @@ def render_one(model, time_limit, nbots, nenvs, nframes, seed, record=False):
     print((steps, reward, info))
     input('Done. Press enter to close.')
 
-pilots = (ReflexPilot,) # SharpPilot)
+pilots = (LaneFollowingPilot, ReflexPilot, SharpPilot)
+rank = np.random.randint(0, len(pilots))
 bot_colors = [Color.orange, Color.purple, Color.navy]
 
 def create_env(time_limit, nbots, seed):
     cars = [Car.HighPerf(Color.green, v_max=2.0)]
     for i in range(nbots):
-        cars.append(Car.Simple(bot_colors[i], v_max=1.0))
-    bots = [pilots[i %  len(pilots)](cars[i], cars) for i in range(1, len(cars))]
-    env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.0)
+        cars.append(Car.Simple(bot_colors[i], v_max=1.2))
+    bots = [pilots[(i + rank) % len(pilots)](cars[i], cars) for i in range(1, len(cars))]
+    env = BeliefDriveItEnv(cars[0], bots, time_limit, noisy=True, random_position=True, bot_speed_deviation=0.15)
     env.seed(seed)
     # env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
     return env
@@ -92,6 +93,7 @@ def run_many(model, time_limit, nbots, nenvs, nframes, seed):
         reward += r
     
     print((steps, reward, info))
+    print(np.mean(reward))
     env.close()
 
 
@@ -102,10 +104,10 @@ def main():
     parser.add_argument('-b', '--batch-name', type=str, default=None)
     parser.add_argument('-m', '--model', type=str, default='make_model.pkl')
     parser.add_argument('-c', '--checkpoint', type=str)
-    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=8)
+    parser.add_argument('-e', '--envs', help='number of environments', type=int, default=24)
     parser.add_argument('-f', '--frames', help='number of frames', type=int, default=4)
-    parser.add_argument('-t', '--time-limit', type=int, default=180)
-    parser.add_argument('-n', '--number-bots', type=int, default=2)
+    parser.add_argument('-t', '--time-limit', type=int, default=4)
+    parser.add_argument('-n', '--number-bots', type=int, default=1)
     parser.add_argument('-r', '--render', action='store_true', default=False)
     parser.add_argument('-v', '--video-record', action='store_true', default=False)
     args = parser.parse_args()
@@ -116,14 +118,25 @@ def main():
 
     assert(args.number_bots <= len(bot_colors))
 
-    with tf.Session() as sess:
-        model = load_model(model_file, checkpoint_path)
-        if args.render:
-            render_one(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed, args.video_record)
-        else:
-            run_many(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed)
+    import gym
+    import logging
+    import multiprocessing
 
-        sess.close()
+    ncpu = multiprocessing.cpu_count()
+    if sys.platform == 'darwin': ncpu //= 2
+    config = tf.ConfigProto(allow_soft_placement=True,
+                            intra_op_parallelism_threads=ncpu,
+                            inter_op_parallelism_threads=ncpu)
+    config.gpu_options.allow_growth = True #pylint: disable=E1101
+    gym.logger.setLevel(logging.WARN)
+    tf.Session(config=config).__enter__()
+
+    model = load_model(model_file, checkpoint_path)
+    if args.render:
+        render_one(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed, args.video_record)
+    else:
+        run_many(model, args.time_limit, args.number_bots, args.envs, args.frames, args.seed)
+
 
 if __name__ == '__main__':
     main()

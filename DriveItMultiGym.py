@@ -7,12 +7,12 @@ Drive-It competition simulation environment
 from os import path
 import math
 import numpy as np
-from numpy import cos, sin, pi, clip #pylint: disable=W0611
+from numpy import cos, sin, pi, clip, sign #pylint: disable=W0611,E0611
 import gym
 from gym import spaces
 from gym.utils import seeding
 from gym.envs.classic_control import rendering
-from car import Car, steer_actions
+from car import Car
 from utils import * #pylint: disable=W0401,W0614
 from DriveItCircuit import * #pylint: disable=W0401,W0614
 
@@ -27,6 +27,11 @@ throttle_override_reward = -dt
 max_compass_bias = 0.017
 compass_deviation = max_compass_bias / 500.0
 velocity_deviation = 0.001
+steer_deviation = 0.01
+throttle_deviation = 0.05
+
+bot_min_distance = 0.0
+bot_max_distance = 1.0
 
 
 class DriveItEnvMulti(gym.Env):
@@ -43,7 +48,6 @@ class DriveItEnvMulti(gym.Env):
         self.noisy = noisy
         self.random_position = random_position
         self.bot_speed_deviation = bot_speed_deviation
-        self.v_max = [car.specs.v_max for car in cars]
         self.car_num = len(cars)
         self.dt = dt
         
@@ -51,8 +55,11 @@ class DriveItEnvMulti(gym.Env):
 
         high = np.array([ 1.0,  0.0 * pi      , cars[0].specs.v_max,  cars[0].specs.K_max, 1.0 ], dtype=np.float32)
         low  = np.array([ 0.0, -3.0 * pi / 2.0,                 0.0, -cars[0].specs.K_max, 0.0 ], dtype=np.float32)
-        self.action_space = spaces.Discrete(len(steer_actions))
         self.observation_space = spaces.Box(low, high)
+
+        high = np.array([  1.0, 1.0 ], dtype=np.float32)
+        low  = np.array([ -1.0, 0.0 ], dtype=np.float32)
+        self.action_space = spaces.Box(low, high)
 
         fname = path.join(path.dirname(__file__), "track.png")
         self._init_track(fname, width=2.0, height=2.0)
@@ -62,6 +69,13 @@ class DriveItEnvMulti(gym.Env):
         self.observations = {}
         self.state = {}
 
+        self.bot_distance_growth = 0.0
+        self.bot_distance = bot_max_distance
+            
+
+    def set_training_mode(self, bot_distance_growth):
+        self.bot_distance_growth = bot_distance_growth
+        self.bot_distance = bot_min_distance
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -74,53 +88,49 @@ class DriveItEnvMulti(gym.Env):
         # keep 2 car length distance in front of cars (3 measuring from the car centers)
         min_dist, max_angle = 3.0 * car.length, pi / 4.0 + 0.05
         for j in range(i):
-            d, alpha = self.cars[j].distance(x, y)
+            other_car = self.cars[j]
+            d, alpha = other_car.distance(x, y)
             if d < car.length or (d < min_dist and abs(alpha) < max_angle):
                 return False
-            d, alpha = car.part_distance(self.cars[j])
+            d, alpha = car.part_distance(other_car)
             if d < min_dist and abs(alpha) < max_angle:
                 return False
         return True
         
 
-    def _reset_car(self, i):
+    def _reset_car(self, i, x_m, y_m, theta_m=0.0):
         car = self.cars[i]
-
-        y_m, theta_m = 0.0, 0.0
+        
         if self.noisy:
             if i > 0:
-                car.specs.v_max = self.v_max[i] * (1 + self.np_random.uniform(-self.bot_speed_deviation, self.bot_speed_deviation))
-            y_m += self.np_random.uniform(-0.01, 0.01)
-            theta_m += self.np_random.uniform(-pi / 36.0, pi / 36.0)
+                car.specs.v_max = car.specs.v_max_default * (1 + self.np_random.uniform(
+                    -self.bot_speed_deviation, self.bot_speed_deviation))
+            theta_m += self.np_random.uniform(-pi / 60.0, pi / 60.0) # 3° deviation
         
-        if self.random_position:
-            k = 0
-            while True:
-                # random position along the track median
-                x_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
-                x, y, theta = median_to_cartesian(x_m, y_m, theta_m)
-                car.set_position(x, y, theta)
-                if self.is_clear(car, x, y, i): break
-                k += 1
-                assert k < 1000, 'Failed to keep safe distance between cars'
-        else:
-            space = lap_median_length / len(self.cars)
-            x_m = wrap(i * space, -checkpoint_median_length, checkpoint_median_length) - car.length / 2.0
-            x, y, theta = median_to_cartesian(x_m, y_m, theta_m)
+        x, y, theta = median_to_cartesian(x_m, y_m, theta_m)
 
         K = track_curvature(x_m, y_m)
         throttle = 0.0
         steer = car.specs.curvature_steer(K)
         if self.noisy:
-            steer += clip(self.np_random.choice((-1, 0, 1)) * car.specs.steer_step, -1.0, 1.0)
+            steer += self.np_random.uniform(-steer_deviation, steer_deviation)
 
         if self.random_position:
             throttle = car.safe_throttle(steer)
             if self.noisy:
-                throttle = self.np_random.randint(
-                    0, throttle / car.specs.throttle_step + 1) * car.specs.throttle_step
+                throttle = self.np_random.uniform(throttle * 0.7, throttle)
 
-        return x_m, car.reset(x, y, theta, steer, throttle)
+        if self.noisy:
+            compass_bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
+            theta -= compass_bias
+        else:
+            compass_bias = 0.0
+        blue = self._blueness(x, y)
+        checkpoint = 1.0 if x_m < 0.0 else 0.0
+        self.observations[car] = blue, theta, throttle * car.specs.v_max, K, checkpoint
+        self.state[car] = x_m, compass_bias, 0 #laps
+
+        car.reset(x, y, theta, steer, throttle)
         
 
     def _reset(self):
@@ -132,19 +142,27 @@ class DriveItEnvMulti(gym.Env):
         self.observations = {}
         self.state = {}
 
-        for i in range(len(self.cars)):
-            x_m, (x, y, theta, _, _, v, K) = self._reset_car(i)
-            car = self.cars[i]
-            if self.noisy:
-                compass_bias = self.np_random.uniform(-max_compass_bias, max_compass_bias)
-                theta -= compass_bias
-            else:
-                compass_bias = 0.0
-            blue = self._blueness(x, y)
-            checkpoint = 1.0 if x_m < 0.0 else 0.0
-            self.observations[car] = blue, theta, v, K, checkpoint
-            self.state[car] = x_m, compass_bias, 0 #laps
-        
+        assert len(self.cars) <= 2
+
+        x0_m = self.np_random.uniform(-checkpoint_median_length, checkpoint_median_length)
+        y0_m = 0.5 * self.np_random.uniform(-half_track_width, half_track_width)
+        if len(self.cars) > 1:
+            dist = self.np_random.uniform(bot_min_distance, self.bot_distance)
+            bot = self.cars[1]
+            x1_m = median_offset(x0_m, dist)
+            ay1_m = self.np_random.uniform(0.01, 0.5 * half_track_width)
+            y1_m = ay1_m * self.np_random.choice([-1.0, 1.0])
+            bot.specs.lateral_offset = y1_m / half_track_width
+            y01_m = (0.5 * half_track_width - ay1_m + 0.5 * bot.specs.car_width) * sign(-y1_m) 
+            kdist = max(0.0, abs(dist) - bot.specs.car_length) / (bot_max_distance - bot.specs.car_length)
+            y0_m = kdist * y0_m + (1 - kdist) * y01_m
+            self._reset_car(1, x1_m, y1_m)
+
+        self._reset_car(0, x0_m, y0_m)
+
+        if self.bot_distance < bot_max_distance:
+            self.bot_distance += self.bot_distance_growth
+
         return self.observations
 
 
@@ -338,7 +356,7 @@ class DriveItEnv(DriveItEnvMulti):
     def _reset(self):
         obs = super()._reset()
         for i in range(1, self.car_num):
-            self.bots[i-1].reset(self.state[self.cars[i]][0], obs[self.cars[i]])
+            self.bots[i-1].reset(obs[self.cars[i]])
         return obs[self.car]
 
     def _step(self, action):
